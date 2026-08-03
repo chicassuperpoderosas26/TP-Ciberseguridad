@@ -22,7 +22,7 @@ DB_CONFIG = {
 PPG_PINK   = "#FF6B9D"   # Blossom
 PPG_BLUE   = "#5BC8F5"   # Bubbles
 PPG_GREEN  = "#7ED4A0"   # Buttercup
-PPG_PURPLE = "#C39BD3"   # Chemical X / fondo
+PPG_PURPLE = "#C39BD3"   # Panel de Operaciones de Seguridad / fondo
 PPG_DARK   = "#1a0e2e"   # fondo oscuro con tinte violeta
 
 SEVERITY_COLORS = {
@@ -30,14 +30,14 @@ SEVERITY_COLORS = {
     "high":     "#FF9A6C",   # naranja cálido
     "medium":   PPG_BLUE,    # Bubbles
     "low":      PPG_GREEN,   # Buttercup
-    "normal":   PPG_PURPLE,  # Chemical X
+    "normal":   PPG_PURPLE,  # Panel de Operaciones de Seguridad
 }
 
 REFRESH_SECONDS = 30
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Chemical X — SOC Dashboard",
+    page_title="Panel de Operaciones de Seguridad — SOC Dashboard",
     page_icon="⚗️",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -359,8 +359,8 @@ now_str = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 st.markdown(f"""
 <div class="soc-header">
   <div>
-    <p class="soc-title">⚗️ Chemical X</p>
-    <p class="soc-subtitle">SOC Dashboard &nbsp;·&nbsp; Las Chicas Superpoderosas &nbsp;·&nbsp; UTN &nbsp;·&nbsp; {now_str}</p>
+    <p class="soc-title">🛡️ Panel de Operaciones de Seguridad</p>
+    <p class="soc-subtitle">SOC Dashboard &nbsp;·&nbsp; UTN &nbsp;·&nbsp; {now_str}</p>
   </div>
   <div class="ppg-badge">
     <div class="dot-pink"></div>
@@ -670,7 +670,7 @@ else:
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div style="text-align:right;font-size:0.72rem;color:{PPG_PURPLE}88;margin-top:20px;">
-  ⚗️ Chemical X &nbsp;·&nbsp; Las Chicas Superpoderosas &nbsp;·&nbsp; UTN &nbsp;·&nbsp;
+  🛡️ Panel de Operaciones de Seguridad &nbsp;·&nbsp; UTN &nbsp;·&nbsp;
   Refresco automático cada {REFRESH_SECONDS}s
 </div>
 """, unsafe_allow_html=True)

@@ -123,16 +123,21 @@ Desarrollar y documentar un **prototipo funcional de SIEM automatizado con n8n**
 | Componente | Estado | Qué hace |
 |------------|--------|----------|
 | Docker Compose | ✅ Completo | Define los 8 servicios del sistema |
-| PostgreSQL | ✅ Funcionando | Base de datos con tablas alerts, playbook_runs, events_raw |
+| PostgreSQL | ✅ Funcionando | Base de datos con tablas alerts, playbook_runs, incidents, ip_blacklist, failed_alerts |
 | Elasticsearch | ✅ Funcionando | Almacena logs indexados para búsqueda rápida |
 | Kibana | ✅ Funcionando | Interfaz web para explorar logs |
 | Logstash | ✅ Funcionando | Parsea logs syslog, extrae IP origen, usuario, etc. |
 | syslog-ng | ✅ Funcionando | Recibe logs UDP y los reenvía a Logstash |
-| n8n | ✅ Funcionando | Workflow "SIEM - Alerta Entrante" activo |
+| n8n | ✅ Funcionando | Workflow "SIEM - Alerta Entrante": severidad, Risk Score, incidentes, bloqueo |
 | Grafana | ✅ Funcionando | Dashboard con 7 paneles de métricas |
-| Wazuh Manager | ✅ Instalado | Manager configurado para detección FIM |
+| Dashboard Streamlit (Panel de Operaciones de Seguridad) | ✅ Funcionando | KPIs, mapa geográfico, IPs bloqueadas |
 | Detector SSH | ✅ Funcionando | Script Python que detecta brute-force automáticamente |
-| Detector FIM | ⏳ Pendiente | Script listo, falta probar integración completa |
+| Detector FIM | ✅ Funcionando | `fim_monitor.py` (hashes MD5/SHA256) + `fim_to_n8n.py` (reenvío a n8n) |
+| Risk Score + AbuseIPDB | ✅ Funcionando | Reputación de IP, alertas acumuladas y reputación interna combinadas en un score 0-100 |
+| Detección de Password Spraying | ✅ Funcionando | 5+ IPs distintas contra el mismo usuario en 5 min → incidente especial |
+| Bloqueo automático de IP (Blocker API) | ✅ Funcionando | Microservicio Flask que aplica reglas de firewall reales (netsh/iptables) |
+
+> **Nota:** Wazuh **no forma parte del stack** (ver más abajo, sección de arquitectura). Se evaluó incorporarlo pero se descartó por incompatibilidad entre su backend (OpenSearch) y el Elasticsearch usado en este proyecto. El monitoreo FIM se implementa con scripts Python propios.
 
 ### Puntos del PDF ya cubiertos
 
@@ -163,7 +168,7 @@ Desarrollar y documentar un **prototipo funcional de SIEM automatizado con n8n**
 #### 1. Separación SIEM vs SOAR
 
 El sistema separa claramente:
-- **Detección** (Elasticsearch, Wazuh, scripts Python)
+- **Detección** (Elasticsearch, scripts Python)
 - **Respuesta** (n8n)
 
 **¿Por qué?** Esto permite cambiar o agregar motores de detección sin tocar los playbooks de respuesta  y viceversa.
@@ -243,15 +248,24 @@ El sistema funciona como una **cadena de montaje** donde cada estación tiene un
               │  Grafana  │           │ └───────────┘
               │(Dashboard)│           │       │
               └───────────┘           │       ▼
-                                      │ ┌───────────┐
-                                      │ │ Telegram  │
-                                      │ │PostgreSQL │
-                                      │ └───────────┘
+                                      │ ┌────────────────────┐
+                                      │ │ Risk Score          │
+                                      │ │ (AbuseIPDB + histor.)│
+                                      │ └──────────┬──────────┘
+                                      │            ▼
+                                      │ ┌────────────────────┐
+                                      │ │ Telegram / Email    │
+                                      │ │ PostgreSQL          │
+                                      │ │ Incidente + Bloqueo  │
+                                      │ │ (Blocker API)        │
+                                      │ └────────────────────┘
                                       │
-                    ┌───────────┐     │
-                    │   Wazuh   │─────┘
-                    │   (FIM)   │
-                    └───────────┘
+                    ┌───────────────┐ │
+                    │ fim_monitor.py│─┘
+                    │ (hashes MD5/  │
+                    │  SHA256, sin  │
+                    │  Wazuh)       │
+                    └───────────────┘
 ```
 
 ### Esquema Entrada → Proceso → Salida
@@ -280,8 +294,22 @@ C:\TP-Final\
 │
 ├── 📁 detector/               # Scripts de detección automática
 │   ├── ssh_bruteforce_detector.py
-│   ├── wazuh_fim_to_n8n.py
-│   └── generate_historical_data.py
+│   ├── fim_monitor.py
+│   ├── fim_to_n8n.py
+│   ├── attack_simulator.py
+│   ├── generate_historical_data.py
+│   └── generate_report.py
+│
+├── 📁 blocker/                # Microservicio de bloqueo de IP (firewall real)
+│   └── blocker_api.py
+│
+├── 📁 dashboard/              # Dashboard Streamlit "Panel de Operaciones de Seguridad"
+│   └── app.py
+│
+├── 📁 n8n/                    # Workflows exportados (JSON)
+│   ├── SIEM - Alerta Entrante.json
+│   ├── SIEM - Reporte Diario.json
+│   └── SIEM - Error Handler.json
 │
 ├── 📁 sql/                    # Esquema de base de datos
 │   └── 01-init.sql
@@ -303,6 +331,9 @@ C:\TP-Final\
 |-----------------|--------------|----------------|
 | `docker-compose.yml` | Definición de servicios | Levantar todo el sistema con un comando |
 | `detector/` | Scripts Python | Detectar ataques automáticamente |
+| `blocker/` | Microservicio Flask | Aplicar bloqueos de IP reales en el firewall (netsh/iptables) |
+| `dashboard/` | App Streamlit | Vista ejecutiva del SOC ("Panel de Operaciones de Seguridad") |
+| `n8n/` | Workflows exportados | Backup versionable de la orquestación SOAR |
 | `sql/` | Queries SQL | Crear las tablas al iniciar PostgreSQL |
 | `logstash/` | Configuración Grok | Definir cómo parsear los logs |
 | `syslog-ng/` | Configuración syslog | Definir de dónde recibir logs y a dónde enviarlos |
@@ -330,9 +361,11 @@ C:\TP-Final\
 | syslog-ng | 514/udp | Recolector de logs |
 | n8n | 5678 | Orquestador SOAR |
 | grafana | 3000 | Dashboards |
-| wazuh-manager | 1514, 55000 | Detector FIM |
+| dashboard | 8501 | Dashboard Streamlit "Panel de Operaciones de Seguridad" |
 
-> **Nota sobre Wazuh Dashboard**: Se decidió no incluir el servicio `wazuh-dashboard` porque requiere **OpenSearch** como backend de datos, pero este stack utiliza **Elasticsearch**. Ambos motores son incompatibles entre sí. La detección FIM de Wazuh **sí funciona** a través del Manager, y las alertas se visualizan en **Grafana** mediante el script `wazuh_fim_to_n8n.py` que las envía a n8n → PostgreSQL → Grafana.
+> **Nota sobre Wazuh**: se evaluó incorporar Wazuh como agente de FIM, pero se descartó porque su stack de indexación está pensado para **OpenSearch**, mientras que este proyecto usa **Elasticsearch** — ambos motores son incompatibles entre sí, y migrar habría significado duplicar la capa de almacenamiento. La detección FIM se implementa en cambio con dos scripts Python propios: `detector/fim_monitor.py` calcula hashes MD5/SHA256 de los archivos vigilados y escribe los eventos en un log local que mimetiza el formato de alerta de Wazuh (evento `syscheck`), y `detector/fim_to_n8n.py` sigue ese log y reenvía cada evento a n8n. Así se gana compatibilidad conceptual con el modelo de datos de Wazuh sin depender de él — el script se llamó originalmente `wazuh_fim_to_n8n.py`, mientras dependía de un contenedor Wazuh que ya no existe; se renombró a `fim_to_n8n.py` para reflejar que hoy funciona de forma independiente.
+>
+> El **Blocker API** (`blocker/blocker_api.py`) tampoco está en `docker-compose.yml`: es un microservicio Flask que se corre aparte, con permisos de administrador, porque aplica reglas reales de firewall (`netsh` en Windows, `iptables` en Linux). Ver `GUIA_TESTING.md` paso 12 para levantarlo.
 
 ---
 
@@ -356,18 +389,38 @@ cada 2 minutos:
 
 ---
 
-### detector/wazuh_fim_to_n8n.py
+### detector/fim_monitor.py
 
-**Qué hace**: Monitorea las alertas de Wazuh en tiempo real y envía las de tipo FIM (File Integrity Monitoring) a n8n.
+**Qué hace**: Vigila una carpeta (por defecto, `test_fim` dentro de la carpeta temporal del sistema) y calcula hashes MD5/SHA256 de cada archivo en ciclos periódicos. Cuando detecta que un archivo se creó, se modificó o se eliminó, escribe un evento en un log local en formato tipo Wazuh (`syscheck`).
 
-**Para qué existe**: Integrar la detección de cambios en archivos (cuando alguien modifica un archivo crítico del sistema).
+**Para qué existe**: Reemplazar el agente FIM de Wazuh con un script propio, sin depender de ningún contenedor externo — la detección de integridad de archivos "de la casa".
 
-**Rol en el sistema**: Es el "puente" entre Wazuh y n8n.
+**Rol en el sistema**: Es el "vigilante" que detecta cambios en archivos críticos comparando hashes entre ciclos.
 
 **Cómo funciona**:
 ```python
 # Pseudocódigo simplificado
-escuchar alertas de Wazuh en tiempo real
+cada N segundos:
+    calcular MD5/SHA256 de cada archivo en la carpeta vigilada
+    comparar contra el estado del ciclo anterior
+    si hay un archivo nuevo, modificado o borrado:
+        escribir el evento en el log local (formato syscheck)
+```
+
+---
+
+### detector/fim_to_n8n.py
+
+**Qué hace**: Sigue en tiempo real el log local que escribe `fim_monitor.py` (con una implementación portable de `tail -f`, sin depender de Docker) y envía las alertas de tipo FIM a n8n.
+
+**Para qué existe**: Ser el "traductor" entre el formato de evento de integridad de archivos y el webhook de n8n, sin importar si la fuente es un script propio o, eventualmente, un agente Wazuh real.
+
+**Rol en el sistema**: Es el "puente" entre la detección FIM y n8n. Antes se llamaba `wazuh_fim_to_n8n.py`, cuando dependía de un contenedor Wazuh; se renombró tras eliminar esa dependencia (ver nota en la sección de componentes de Docker Compose).
+
+**Cómo funciona**:
+```python
+# Pseudocódigo simplificado
+seguir el log local escrito por fim_monitor.py
 si la alerta es de tipo "syscheck" (cambio de archivo):
     determinar severidad (deleted=critical, modified=high, created=medium)
     enviar a n8n
@@ -525,10 +578,12 @@ si la alerta es de tipo "syscheck" (cambio de archivo):
    - Body: JSON con rule_id, src_ip, severity
 
 8. **n8n procesa la alerta**
-   - Valida el header de autenticación
-   - Inserta en tabla `alerts` de PostgreSQL
-   - (Opcional) Envía notificación a Telegram
-   - Inserta en tabla `playbook_runs`
+   - Valida el header de autenticación y la inserta en la tabla `alerts` de PostgreSQL
+   - Enriquece el evento y filtra por severidad (las alertas LOW se guardan y terminan ahí)
+   - Verifica si la IP ya tiene un incidente abierto (evita duplicar, avisa reincidencia)
+   - En paralelo: cuenta IPs distintas contra el mismo usuario (Password Spraying) y consulta AbuseIPDB + historial para calcular un Risk Score de 0 a 100
+   - Si el Risk Score es crítico: crea un incidente, bloquea la IP vía Blocker API y notifica por Telegram y email
+   - Inserta el resultado en `playbook_runs`
 
 9. **Grafana muestra la alerta**
    - Consulta PostgreSQL cada X segundos
@@ -539,7 +594,7 @@ si la alerta es de tipo "syscheck" (cambio de archivo):
 | Servicio externo | Cómo se integra | Estado |
 |------------------|-----------------|--------|
 | Telegram | n8n envía notificaciones | ✅ Configurado |
-| AbuseIPDB | n8n consulta reputación IP | ❌ No implementado |
+| AbuseIPDB | n8n consulta reputación IP para Risk Score y país de origen | ✅ Configurado |
 | VirusTotal | n8n consulta hashes | ❌ No implementado |
 
 ---
@@ -621,8 +676,8 @@ docker-compose up -d
  ✔ Container siem_logstash        Started
  ✔ Container siem_syslog          Started
  ✔ Container siem_n8n             Started
+ ✔ Container siem_dashboard       Started
  ✔ Container siem_grafana         Started
- ✔ Container siem_wazuh_manager   Started
 ```
 
 ---
@@ -646,8 +701,8 @@ siem_kibana             Up
 siem_logstash           Up
 siem_syslog             Up
 siem_n8n                Up
+siem_dashboard          Up
 siem_grafana            Up
-siem_wazuh_manager      Up
 ```
 
 **Si alguno dice "Exited"**: Hay un problema. Ver logs con `docker logs <nombre_contenedor>`.
@@ -720,7 +775,7 @@ docker-compose down
 **Salida esperada**:
 ```
 [+] Running 8/8
- ✔ Container siem_wazuh_manager    Removed
+ ✔ Container siem_dashboard        Removed
  ✔ Container siem_grafana          Removed
  ✔ Container siem_n8n              Removed
  ✔ Container siem_syslog           Removed
@@ -802,7 +857,7 @@ docker-compose up -d
 
 ### Paso 3: Esperar a que los servicios inicien (2-3 minutos)
 
-Los servicios, especialmente Elasticsearch y Wazuh, tardan en iniciar completamente.
+Los servicios, especialmente Elasticsearch, tardan en iniciar completamente.
 
 **Cómo confirmar que Elasticsearch está listo**:
 
@@ -1032,11 +1087,11 @@ Invoke-RestMethod -Uri "http://localhost:5678/webhook/alert/siem" -Method POST -
 
 #### Caso 2: Detectar modificación de archivo crítico
 
-1. Alguien modifica `/etc/passwd` en un servidor
-2. Wazuh detecta el cambio de hash del archivo
-3. Wazuh genera una alerta FIM
-4. El script `wazuh_fim_to_n8n.py` captura la alerta
-5. Se envía a n8n con severidad "high" (modificación) o "critical" (eliminación)
+1. Alguien modifica un archivo dentro de la carpeta vigilada
+2. `fim_monitor.py` recalcula el hash MD5/SHA256 en su siguiente ciclo y detecta la diferencia
+3. `fim_monitor.py` escribe el evento (creado/modificado/eliminado) en el log local
+4. El script `fim_to_n8n.py` sigue ese log y captura el evento
+5. Se envía a n8n con severidad "medium" (creación), "high" (modificación) o "critical" (eliminación)
 6. El sistema registra y notifica
 
 ---
@@ -1050,20 +1105,22 @@ Invoke-RestMethod -Uri "http://localhost:5678/webhook/alert/siem" -Method POST -
 | Recolección centralizada con syslog-ng + Logstash | ✅ Completo | Funcionando |
 | Almacenamiento dual ES + PostgreSQL | ✅ Completo | Funcionando |
 | Regla SSH brute-force | ✅ Completo | Script Python funcionando |
-| Regla FIM (File Integrity) | ✅ Completo | Script listo + integración Wazuh |
-| Respuesta automática con n8n | ✅ Completo | Workflow activo |
+| Regla FIM (File Integrity) | ✅ Completo | `fim_monitor.py` + `fim_to_n8n.py`, sin dependencia de Wazuh |
+| Respuesta automática con n8n | ✅ Completo | Workflow activo con Risk Score, incidentes y bloqueo |
 | Notificación Telegram | ✅ Completo | Configurado en n8n |
 | Visualización Grafana | ✅ Completo | Dashboard con 7 paneles |
+| Dashboard Streamlit (Panel de Operaciones de Seguridad) | ✅ Completo | Mapa geográfico, KPIs, IPs bloqueadas |
+| Risk Score con AbuseIPDB | ✅ Completo | Reputación de IP + historial + reputación interna (score 0-100) |
+| Detección de Password Spraying | ✅ Completo | 5+ IPs contra el mismo usuario en 5 min |
+| Bloqueo automático de IP | ✅ Completo | Blocker API con reglas de firewall reales |
 | Métricas MTTA/MTTR | ✅ Completo | Calculado en PostgreSQL |
 | docker-compose reproducible | ✅ Completo | Funciona con un comando |
 | Documentación técnica | ✅ Completo | README completo |
 
 ### Funcionalidades pendientes (Prioridad Alta)
 
-1. **Probar integración FIM completa**
-   - Ejecutar `wazuh_fim_to_n8n.py`
-   - Modificar archivos monitoreados por Wazuh
-   - Verificar que la alerta llega a n8n y se guarda
+1. **Ampliar inteligencia de amenazas**
+   - Integrar VirusTotal para clasificación de hashes de archivos sospechosos (AbuseIPDB ya está integrado)
 
 2. **Configurar notificaciones Telegram**
    - Crear bot en BotFather
@@ -1096,9 +1153,8 @@ Invoke-RestMethod -Uri "http://localhost:5678/webhook/alert/siem" -Method POST -
    - Malware detection
    - Login desde ubicación inusual
 
-8. **Integración con threat intelligence**
-   - AbuseIPDB
-   - VirusTotal
+8. **Ampliar la integración con threat intelligence**
+   - VirusTotal (AbuseIPDB ya está integrado para Risk Score y geolocalización)
 
 ---
 
@@ -1129,7 +1185,7 @@ Todos los requisitos del PDF han sido implementados:
 1. ✅ Recolección centralizada (syslog-ng + Logstash)
 2. ✅ Almacenamiento dual (Elasticsearch + PostgreSQL)
 3. ✅ Detección SSH brute-force
-4. ✅ Detección FIM (File Integrity Monitoring) con Wazuh
+4. ✅ Detección FIM (File Integrity Monitoring) con scripts Python propios
 5. ✅ Orquestación con n8n
 6. ✅ Notificaciones Telegram
 7. ✅ Dashboards Grafana
@@ -1269,7 +1325,7 @@ pip install requests
 
 **Autor documento original**: Alberto Cortez
 
-**Última actualización README**: 2 de febrero de 2026
+**Última actualización README**: 1 de julio de 2026
 
 ---
 

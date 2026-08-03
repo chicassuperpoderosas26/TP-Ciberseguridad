@@ -1,3 +1,9 @@
+# NOTA: la Blocker API (blocker/blocker_api.py, puerto 8765) NO está definida como
+# servicio en este archivo. Aplica reglas de firewall reales (netsh en Windows,
+# iptables en Linux) que deben actuar sobre la red del HOST, no sobre el espacio de
+# red aislado de un contenedor. Por eso se ejecuta manualmente sobre el sistema
+# operativo anfitrión, con privilegios de administrador. Ver sección 5.12 de la
+# tesis y el Anexo E (Guía de Despliegue) para las instrucciones de arranque.
 services:
   postgres:
     image: postgres:16
@@ -49,7 +55,6 @@ services:
     volumes:
       - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
     ports:
-      - "5044:5044"
       - "5140:5140/udp"
     networks:
       - siem-net
@@ -65,7 +70,6 @@ services:
       - ./syslog-ng/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf
     ports:
       - "514:514/udp"
-      - "6514:6514/tcp"
     networks:
       - siem-net
     depends_on:
@@ -84,9 +88,6 @@ services:
       - DB_POSTGRESDB_DATABASE=siem
       - DB_POSTGRESDB_USER=siem
       - DB_POSTGRESDB_PASSWORD=siem123
-      - N8N_BASIC_AUTH_ACTIVE=false
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin123
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
