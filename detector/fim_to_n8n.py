@@ -55,12 +55,7 @@ def monitor_wazuh_fim():
                 
                 # Determinar severidad según evento
                 event_type = fim.get('event', 'unknown')
-                if event_type == 'deleted':
-                    severity = 'critical'
-                elif event_type == 'modified':
-                    severity = 'high'
-                else:
-                    severity = 'medium'
+                severity = 'critical' if event_type == 'deleted' else 'high'
                 
                 # Crear payload para n8n
                 payload = {

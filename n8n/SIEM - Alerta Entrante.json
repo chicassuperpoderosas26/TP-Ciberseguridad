@@ -28,8 +28,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\nVALUES (\n'{{ $node[\"Enriquecer Datos\"].json.body.rule_id }}',\n'{{ $node[\"Enriquecer Datos\"].json.body.src_ip }}',\n'{{ $node[\"Enriquecer Datos\"].json.body.username }}',\n'{{ $node[\"Enriquecer Datos\"].json.body.severity }}',\n'{{ JSON.stringify($node[\"Enriquecer Datos\"].json.body || {}) }}'::jsonb\n)\nRETURNING id;",
-        "options": {}
+        "query": "INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\nVALUES ($1, $2, $3, $4, $5::jsonb)\nRETURNING id;",
+        "options": {
+          "queryReplacement": "={{$node[\"Enriquecer Datos\"].json.body.rule_id}}, {{$node[\"Enriquecer Datos\"].json.body.src_ip}}, {{$node[\"Enriquecer Datos\"].json.body.username}}, {{$node[\"Enriquecer Datos\"].json.body.severity}}, {{JSON.stringify($node[\"Enriquecer Datos\"].json.body || {})}}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
@@ -396,16 +398,14 @@
         "headerParameters": {
           "parameters": [
             {
-              "name": "Key",
-              "value": "36f2503508ddf0b9cd54c4ae01644e9092e4a4b6314ac3ab744367dd8b0add6dda5a8ceeef158af1"
-            },
-            {
               "name": "Accept",
               "value": "application/json"
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
@@ -418,7 +418,13 @@
       "retryOnFail": true,
       "maxTries": 2,
       "waitBetweenTries": 3000,
-      "onError": "continueRegularOutput"
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "waqn15ucNpBEKLhw",
+          "name": "AbuseIPDB API Key"
+        }
+      }
     },
     {
       "parameters": {
@@ -874,8 +880,10 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "WITH ins AS (\n  INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\n  VALUES (\n    '{{ $json.rule_id }}',\n    '{{ $json.src_ip }}',\n    '{{ $json.username }}',\n    '{{ $json.severity }}',\n    '{{ $json.raw_body }}'::jsonb\n  )\n  RETURNING id\n)\nINSERT INTO playbook_runs(alert_id, workflow, outcome)\nSELECT id, 'SIEM-Alert-Low', 'logged_low' FROM ins;\n",
-        "options": {}
+        "query": "WITH ins AS (\n  INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\n  VALUES ($1, $2, $3, $4, $5::jsonb)\n  RETURNING id\n)\nINSERT INTO playbook_runs(alert_id, workflow, outcome)\nSELECT id, 'SIEM-Alert-Low', 'logged_low' FROM ins;\n",
+        "options": {
+          "queryReplacement": "={{$json.rule_id}}, {{$json.src_ip}}, {{$json.username}}, {{$json.severity}}, {{$json.raw_body}}"
+        }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,

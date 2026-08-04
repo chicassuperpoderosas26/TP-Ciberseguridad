@@ -36,6 +36,9 @@ Thumbs.db
 tmp/
 temp/
 
+# Backups de base de datos (pueden contener datos operativos de n8n)
+*.dump
+
 # Archivos personales (no subir)
 GUION_VIDEO.md
 walkthrough.md

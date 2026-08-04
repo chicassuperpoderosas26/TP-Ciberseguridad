@@ -422,7 +422,7 @@ cada N segundos:
 # Pseudocódigo simplificado
 seguir el log local escrito por fim_monitor.py
 si la alerta es de tipo "syscheck" (cambio de archivo):
-    determinar severidad (deleted=critical, modified=high, created=medium)
+    determinar severidad (deleted=critical, modified=high, created=high)
     enviar a n8n
 ```
 
@@ -821,7 +821,7 @@ docker exec siem_postgres psql -U siem -d siem -c "SELECT id, rule_id, src_ip, s
  id |      rule_id      |    src_ip     | severity |            ts
 ----+-------------------+---------------+----------+---------------------------
  15 | ssh_bruteforce    | 10.0.0.50     | high     | 2026-02-02 15:00:00.123456
- 14 | file_integrity    | 192.168.1.10  | medium   | 2026-02-02 14:55:00.654321
+ 14 | file_integrity    | 192.168.1.10  | high     | 2026-02-02 14:55:00.654321
  ...
 ```
 
@@ -1066,7 +1066,7 @@ $body = @{
     rule_id = "test_manual"
     src_ip = "192.168.1.100"
     username = "test_user"
-    severity = "medium"
+    severity = "high"
     timestamp = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
 } | ConvertTo-Json
 
@@ -1091,7 +1091,7 @@ Invoke-RestMethod -Uri "http://localhost:5678/webhook/alert/siem" -Method POST -
 2. `fim_monitor.py` recalcula el hash MD5/SHA256 en su siguiente ciclo y detecta la diferencia
 3. `fim_monitor.py` escribe el evento (creado/modificado/eliminado) en el log local
 4. El script `fim_to_n8n.py` sigue ese log y captura el evento
-5. Se envía a n8n con severidad "medium" (creación), "high" (modificación) o "critical" (eliminación)
+5. Se envía a n8n con severidad "high" (creación o modificación) o "critical" (eliminación)
 6. El sistema registra y notifica
 
 ---

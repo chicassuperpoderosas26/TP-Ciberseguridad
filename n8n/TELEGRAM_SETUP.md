@@ -26,7 +26,7 @@
 ## Paso 4: Importar Workflow
 
 1. Ir a **Workflows** → **Import from file**
-2. Seleccionar `n8n/workflow-siem-alerta.json`
+2. Seleccionar `n8n/SIEM - Alerta Entrante.json`
 3. Editar el nodo **Notificar Telegram**:
    - Credential: seleccionar `Telegram Bot SIEM`
    - Chat ID: poner tu Chat ID (ej: `123456789`)

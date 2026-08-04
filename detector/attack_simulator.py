@@ -81,11 +81,11 @@ logger.addHandler(_file_handler)
 # DATOS SIMULADOS
 # ============================================
 
-# IPs simuladas de atacantes
+# IPs simuladas de atacantes (publicas, con pais real via AbuseIPDB para el mapa)
 ATTACKER_IPS = [
-    "203.0.113.50",
-    "198.51.100.23",
-    "192.0.2.100",
+    "103.140.187.60",
+    "80.94.95.116",
+    "196.251.83.100",
     "45.33.32.156",
     "185.220.101.42",
     "91.240.118.172",
@@ -313,7 +313,7 @@ def file_integrity(file_path=None, ip=None, stats=None):
         "file_integrity",
         ip,
         "system",
-        "medium" if "www" in file_path else "critical",
+        "high" if "www" in file_path else "critical",
         f"ossec: integrity checksum changed: {file_path}",
         file_path=file_path,
     )
@@ -567,7 +567,7 @@ def full_auto_simulation(stats=None):
     results = []
 
     print(f"\n{C.BOLD}{C.CYAN}FASE 1: Ataque SSH Brute Force{C.RESET}")
-    results.append(ssh_bruteforce(ip="203.0.113.50", user="root", count=6, delay=1.5, stats=stats))
+    results.append(ssh_bruteforce(ip="103.140.187.60", user="root", count=6, delay=1.5, stats=stats))
     time.sleep(3)
 
     print(f"\n{C.BOLD}{C.CYAN}FASE 2: Cambios de integridad detectados{C.RESET}")
@@ -579,7 +579,7 @@ def full_auto_simulation(stats=None):
     time.sleep(3)
 
     print(f"\n{C.BOLD}{C.CYAN}FASE 4: Segundo ataque brute force{C.RESET}")
-    results.append(ssh_bruteforce(ip="198.51.100.23", user="admin", count=5, delay=1.5, stats=stats))
+    results.append(ssh_bruteforce(ip="80.94.95.116", user="admin", count=5, delay=1.5, stats=stats))
     time.sleep(3)
 
     print(f"\n{C.BOLD}{C.CYAN}FASE 5: Login sospechoso + Malware{C.RESET}")
@@ -611,7 +611,7 @@ def rama1_alerta_high(stats=None):
     print(f"{C.GRAY}Espera: Telegram con alerta HIGH, sin incidente nuevo{C.RESET}")
     print(f"{C.GRAY}{'-' * 65}{C.RESET}")
     payload = build_payload(
-        "FILE_INTEGRITY", "91.189.114.8", "admin", "high",
+        "file_integrity", "91.189.114.8", "admin", "high",
         "Archivo critico modificado — test rama 1",
         attempt_count=1,
     )
@@ -624,7 +624,7 @@ def rama2_alerta_descartada(stats=None):
     print(f"{C.GRAY}Espera: webhook responde 200, se guarda en DB pero NO llega nada a Telegram{C.RESET}")
     print(f"{C.GRAY}{'-' * 65}{C.RESET}")
     payload = build_payload(
-        "SQL_INJECTION", "10.10.10.2", "user", "low",
+        "sql_injection", "10.10.10.2", "user", "low",
         "SQL injection detectado — test rama 2",
         attempt_count=1,
     )
@@ -643,7 +643,7 @@ def rama3_nuevo_incidente(stats=None):
     all_ok = True
     for attempt in range(1, 7):
         payload = build_payload(
-            "SSH_BRUTE_FORCE", RAMA_TEST_IP, "root", "critical",
+            "ssh_bruteforce", RAMA_TEST_IP, "root", "critical",
             f"Failed password for root from {RAMA_TEST_IP} port 22 ssh2",
             attempt_count=attempt,
         )
@@ -661,7 +661,7 @@ def rama4_reincidencia(stats=None):
     print(f"{C.GRAY}Espera: alerta de reincidencia en Telegram, sin crear nuevo incidente{C.RESET}")
     print(f"{C.GRAY}{'-' * 65}{C.RESET}")
     payload = build_payload(
-        "SSH_BRUTE_FORCE", RAMA_TEST_IP, "root", "critical",
+        "ssh_bruteforce", RAMA_TEST_IP, "root", "critical",
         f"Reincidencia detectada desde {RAMA_TEST_IP}",
         attempt_count=9,
     )
@@ -671,7 +671,7 @@ def rama4_reincidencia(stats=None):
 def rama5_password_spraying_workflow(stats=None):
     """Rama 5: 6 IPs distintas atacando el mismo usuario — detecta password spraying."""
     user = "admin"
-    ips = ["203.0.113.50", "198.51.100.23", "185.220.101.42", "91.240.118.172", "178.128.95.10", "45.33.32.156"]
+    ips = ["103.140.187.60", "80.94.95.116", "185.220.101.42", "91.240.118.172", "178.128.95.10", "45.33.32.156"]
     print(f"\n{C.BOLD}{C.RED}[RAMA 5] Password Spraying{C.RESET}")
     print(f"{C.GRAY}6 IPs distintas -> usuario: {user}{C.RESET}")
     print(f"{C.GRAY}Espera: alertas individuales + mensaje PASSWORD SPRAYING DETECTADO{C.RESET}")
