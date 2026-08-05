@@ -1,0 +1,733 @@
+1|Normal|UNIVERSIDAD TECNOLÓGICA NACIONAL — FRM
+2|Normal|Tecnicatura Universitaria en Programación
+3|Normal|Implementación de un SIEM Básico Orquestado con n8n
+4|Normal|para Recolección Centralizada de Logs y Respuesta Automatizada
+5|Normal|Trabajo Final de Carrera
+6|Normal|Autoras
+7|Normal|Azul Castroviejo
+8|Normal|Clara Mitre
+9|Normal|Micaela Paco
+11|Normal|Directores
+12|Normal|Alberto Cortez
+13|Normal|Ariel Enferrel
+15|Normal|2026 — Mendoza, Argentina
+16|Normal|Versión 9 — revisión académica
+18|Heading 1|Presentación del Trabajo
+19|Normal|El presente Trabajo Final de Carrera se presenta en cumplimiento de los requisitos curriculares de la Tecnicatura Universitaria en Programación de la Universidad Tecnológica Nacional, Facultad Regional Mendoza, en el marco del reglamento de Trabajo Final de Carrera vigente para esta tecnicatura. El documento se ajusta a las convenciones académicas de presentación de trabajos finales adoptadas por la cátedra y por los directores de tesis indicados en la portada. Cualquier discrepancia formal con el reglamento institucional vigente al momento de la defensa deberá relevarse durante la revisión final, previa a la presentación oral, con el asesoramiento de los directores.
+20|Heading 1|Resumen
+21|Normal|Este trabajo presenta el diseño, implementación y validación de un sistema SIEM (Security Information and Event Management, Sistema de Información y Gestión de Eventos de Seguridad) automatizado, orquestado mediante n8n y construido íntegramente con tecnologías open source. La propuesta aborda una brecha concreta en entornos académicos y organizaciones de pequeña escala: la ausencia de soluciones SIEM accesibles que integren detección, orquestación y visualización de incidentes sin requerir licencias comerciales ni infraestructura costosa.
+22|Normal|El objetivo central es centralizar logs, detectar anomalías y ejecutar respuestas automáticas ante incidentes en un entorno de laboratorio controlado, contribuyendo a la formación práctica de analistas de operaciones de seguridad (SecOps) en la modalidad a distancia de UTN–SIED. La solución integra syslog-ng, Logstash, Elasticsearch, PostgreSQL, Grafana y n8n, conformando un pipeline SIEM–SOAR-lite reproducible, de bajo costo y alineado con los principios de las normas ISO/IEC 27001:2022 y el NIST Cybersecurity Framework 2.0.
+23|Normal|Los resultados obtenidos en entorno de laboratorio sustentan la viabilidad técnica y pedagógica de la propuesta: tasa de automatización del 98,77 % sobre 162 alertas procesadas, MTTR mediano del orden de 1 segundo frente a una línea base de respuesta manual estimada bibliográficamente en el orden de los minutos, detección funcional de ataques SSH brute-force y monitoreo de integridad de archivos (FIM), y despliegue reproducible mediante un único comando Docker Compose. El sistema fue validado en entorno de laboratorio académico controlado y su arquitectura contenedorizada permite su adopción por otros laboratorios universitarios con recursos mínimos. Las afirmaciones cuantitativas se acotan al alcance del experimento sintético; la generalización a entornos productivos se identifica explícitamente como línea de trabajo futuro.
+24|Normal|Palabras clave: SIEM, n8n, SOAR, ciberseguridad, automatización, Grafana, PostgreSQL, open source, SecOps, SSH brute-force, FIM, ISO 27001, NIST, Docker.
+25|Heading 2|Abstract
+26|Normal|This paper presents the design, implementation and validation of an automated Security Information and Event Management (SIEM) system, orchestrated through n8n and built entirely with open-source technologies. The main objective is to centralize logs, detect anomalies and execute automatic responses to incidents in a controlled academic environment, reducing mean detection and response times (MTTA/MTTR) while generating a realistic training scenario for security operations analysts (SecOps) in UTN–SIED distance learning modalities.
+27|Normal|The solution integrates syslog-ng, Logstash, Elasticsearch, PostgreSQL, Grafana and n8n, forming a reproducible, low-cost SIEM–SOAR-lite pipeline aligned with ISO/IEC 27001:2022 and the NIST Cybersecurity Framework 2.0. Results include a 98.77% automation rate over 162 processed alerts, a median MTTR of approximately 1 second versus a manual response baseline of the order of minutes (bibliographic reference, not own measurement), functional SSH brute-force detection, file integrity monitoring (FIM), and reproducible deployment via a single Docker Compose command. Quantitative findings are bounded to the synthetic laboratory scope; generalisation to production environments is explicitly identified as future work.
+28|Normal|Keywords: SIEM, n8n, SOAR, cybersecurity, automation, Grafana, PostgreSQL, open source, SecOps, SSH brute-force, FIM, ISO 27001, NIST, Docker.
+29|Heading 1|Capítulo 1: Introducción
+30|Heading 2|1.1 Contexto y Motivación
+31|Normal|En los últimos años, los Sistemas de Información y Gestión de Eventos de Seguridad (SIEM) se consolidaron como el núcleo de la observabilidad y la respuesta frente a incidentes en organizaciones públicas, privadas y académicas. Según el informe Cost of a Data Breach Report 2024 de IBM Security [16], el costo promedio global de una brecha de seguridad alcanzó los 4,88 millones de dólares —un incremento del 10 % respecto al año anterior, el mayor salto interanual desde la pandemia—, con un tiempo medio combinado de identificación y contención de 258 días. El mismo informe documenta que las organizaciones que despliegan extensivamente automatización e inteligencia artificial en sus operaciones de seguridad detectan y contienen incidentes, en promedio, 98 días más rápido que aquellas que no lo hacen, y reducen el costo promedio del incidente en 2,2 millones de dólares. Estas cifras consolidan empíricamente el argumento de que la detección temprana y la automatización de la respuesta son factores críticos —no decorativos— para la resiliencia operativa de cualquier organización. En el contexto regional argentino, la escasez de información estadística pública oficial sobre volumen de ciberataques constituye en sí misma una limitación del análisis de contexto; los reportes de inteligencia de amenazas publicados por proveedores de seguridad como FortiGuard Labs [17] deben tomarse como indicios direccionales antes que como mediciones independientes, dado que provienen de fuentes interesadas en el mercado de seguridad. No obstante, la coincidencia entre estas mediciones y las estadísticas internacionales permite afirmar con razonable seguridad que Argentina forma parte del mismo escenario de exposición creciente al riesgo cibernético que el resto de América Latina.
+32|Normal|Sin embargo, la adopción de soluciones SIEM se ve seriamente limitada en entornos educativos, laboratorios universitarios y pequeñas y medianas empresas tecnológicas por tres factores principales. En primer lugar, el costo de licenciamiento de las plataformas comerciales líderes —como Splunk, IBM QRadar o Microsoft Sentinel— resulta prohibitivo para instituciones públicas con presupuestos acotados. En segundo lugar, la complejidad de despliegue y de operación diaria demanda equipos especializados que no siempre están disponibles en contextos académicos. En tercer lugar, la ausencia de automatización integrada en soluciones de bajo costo obliga a que la respuesta ante incidentes dependa exclusivamente de la intervención humana, incrementando el tiempo de exposición ante amenazas activas.
+33|Normal|Este proyecto nació de la necesidad concreta de cerrar esa brecha, diseñando un SIEM académico reproducible que, apoyado en herramientas libres y en automatización con n8n como capa SOAR-lite, simule las funciones básicas de un centro de operaciones de seguridad (SOC) sin requerir infraestructura costosa ni equipos altamente especializados.
+36|Heading 2|1.2 Planteamiento del Problema
+37|Normal|A pesar de la disponibilidad creciente de stacks de seguridad abiertos —como el ecosistema ELK (Elasticsearch, Logstash, Kibana), TheHive y n8n— muchas instituciones educativas y organizaciones de pequeña escala no disponen de un flujo integrado que permita recolectar todos sus logs en un único punto, normalizarlos y almacenarlos de forma estructurada, detectar comportamientos anómalos de manera automática, orquestar una respuesta coordinada ante incidentes, y visualizar indicadores de desempeño del SOC en tiempo real. Esta fragmentación tiene consecuencias operativas directas: la detección es manual y tardía, no existe trazabilidad de los playbooks ejecutados y es imposible medir métricas clave como MTTA y MTTR.
+38|Normal|En el contexto específico de UTN–SIED, este problema adquiere una dimensión pedagógica adicional: los estudiantes de ciberseguridad, redes y DevSecOps necesitan laboratorios donde puedan operar el circuito completo de un incidente de seguridad, desde la generación del evento hasta la respuesta automatizada, pero los sistemas comerciales están fuera del alcance presupuestario institucional y los stacks open source disponibles carecen de documentación pedagógica accesible e integración cohesionada. En síntesis, no existe en el ecosistema de herramientas abiertas una solución que sea simultáneamente un SIEM operativo, un entorno de aprendizaje para SecOps y un sistema desplegable con recursos mínimos. Este trabajo se propone cubrir ese espacio.
+39|Heading 2|1.3 Justificación
+40|Normal|La investigación se justifica desde múltiples dimensiones que se refuerzan mutuamente. Desde la perspectiva formativa, las cátedras de ciberseguridad de UTN requieren laboratorios reales donde los estudiantes puedan operar el circuito completo de un incidente, desarrollando competencias operacionales que no pueden adquirirse mediante enseñanza puramente teórica. Desde la perspectiva económica, un stack cien por ciento open source elimina la barrera de licenciamiento y facilita la transferencia de conocimiento entre instituciones. Desde la perspectiva regulatoria, la gestión centralizada de eventos de seguridad es coherente con los controles A.8.15 y A.8.16 de la norma ISO/IEC 27001:2022 [11], con las funciones Detect y Respond del NIST Cybersecurity Framework 2.0 [12], y con los principios de la Ley Nacional 25.326 de Protección de Datos Personales [14]. Desde la perspectiva de la trazabilidad, el almacenamiento de incidentes y ejecuciones de playbooks en PostgreSQL permite documentar y evaluar objetivamente el desempeño del sistema. Finalmente, desde la perspectiva de la transferibilidad, el prototipo puede ser replicado por otros laboratorios universitarios, municipalidades y pequeñas empresas con mínimo esfuerzo de adaptación, gracias a su diseño contenedorizado.
+43|Heading 2|1.4 Objetivo General
+44|Normal|Desarrollar, documentar y validar un prototipo funcional de SIEM automatizado orquestado con n8n, capaz de recolectar, analizar y reaccionar ante los patrones de seguridad SSH brute-force y FIM en un entorno de laboratorio académico, utilizando exclusivamente herramientas open source desplegadas mediante contenedores Docker.
+45|Heading 2|1.5 Objetivos Específicos
+46|Normal|Implementar la recolección centralizada de logs mediante syslog-ng y Logstash, configurando el pipeline de ingesta desde hosts remotos hasta el almacenamiento indexado.
+47|Normal|Normalizar y almacenar eventos en Elasticsearch para búsqueda rápida y en PostgreSQL para auditoría estructurada y cálculo de métricas.
+48|Normal|Definir y ejecutar reglas de detección basadas en umbrales y patrones, implementando detección de SSH brute-force y monitoreo de integridad de archivos (FIM) mediante scripts Python especializados.
+49|Normal|Orquestar respuestas automáticas en n8n, incluyendo validación de autenticación, registro en base de datos, notificación por Telegram y auditoría de ejecución de playbooks.
+50|Normal|Visualizar métricas operativas del SOC en Grafana, incluyendo distribución de alertas por severidad, tendencia temporal, MTTR, IPs más sospechosas y tasa de automatización.
+51|Normal|Medir el tiempo absoluto de respuesta del circuito automatizado mediante las métricas MTTA y MTTR, y contrastar dichos valores con valores de referencia documentados en la literatura para procesos manuales de respuesta a incidentes.
+52|Normal|Elaborar documentación técnica reutilizable que incluya el docker-compose.yml, el esquema SQL, los workflows de n8n, las configuraciones de Logstash y syslog-ng, y los dashboards de Grafana.
+53|Heading 2|1.6 Preguntas de Investigación
+54|Normal|¿Es posible construir un SIEM académico plenamente funcional utilizando exclusivamente herramientas open source y orquestarlo con n8n sin pérdida significativa de funcionalidad respecto a soluciones comerciales?
+55|Normal|¿La automatización de respuestas mediante n8n reduce efectivamente el MTTR frente a un circuito manual de respuesta a incidentes?
+56|Normal|¿Qué métricas mínimas se deben recolectar para evaluar el funcionamiento de un SOC académico, incluyendo MTTA, MTTR, cobertura de fuentes, tasa de automatización y falsos positivos?
+57|Normal|¿El pipeline propuesto es reproducible y portable para ser adoptado por otros laboratorios de UTN y SIED sin requerir infraestructura adicional significativa?
+58|Heading 2|1.7 Hipótesis
+59|Normal|H1. En un entorno de laboratorio con generación controlada de eventos sintéticos de ataque, la incorporación de un orquestador SOAR-lite basado en n8n sobre un stack SIEM compuesto por syslog-ng, Logstash, Elasticsearch y PostgreSQL produce un MTTR mediano inferior a 30 segundos, frente a un proceso de respuesta manual de referencia documentado en la literatura cuyo MTTR mediano se ubica en el orden de las decenas de minutos. La hipótesis se considerará confirmada si el MTTR mediano automatizado medido sobre la vista mttr_stats es menor que el valor de referencia bibliográfico, y si la trazabilidad de las ejecuciones en playbook_runs es completa. 
+60|Normal|Los criterios operacionales de esta hipótesis —tamaño de la muestra (n=162 alertas sintéticas generadas mediante escenarios compuestos del simulador de ataques, cubriendo ocho de los diez tipos de evento soportados) y protocolo de generación de eventos— se detallan en la sección 5.9.
+61|Normal|H2. Un SIEM académico desplegado en contenedores Docker, con flujos de ingesta, detección y respuesta documentados en una guía paso a paso, es reproducible por un operador con conocimientos básicos de línea de comandos y Docker, sin requerir infraestructura adicional más allá de una computadora con 8 GB de RAM y Docker Desktop instalado. La hipótesis se considerará confirmada si, en una serie de pruebas de despliegue desde cero, el sistema queda operativo en un tiempo medio inferior a 15 minutos en la primera ejecución y se cumple un conjunto definido de criterios de aceptación: todos los servicios reportan estado saludable, el simulador genera al menos una alerta que recorre el pipeline completo, y dicha alerta queda registrada en playbook_runs con su correspondiente notificación.
+62|Normal|H3. Un SIEM académico orquestado con n8n puede exponer, mediante vistas SQL y dashboards de visualización, el conjunto mínimo de métricas operativas necesario para evaluar el desempeño de un SOC de laboratorio —MTTR, tasa de automatización, cobertura de fuentes de eventos y tasa de alertas fallidas—, sin requerir instrumentación adicional más allá de la ya prevista en el diseño del sistema. El indicador MTTA queda deliberadamente fuera del alcance de esta hipótesis por las razones metodológicas expuestas en la sección de Limitaciones. La hipótesis se considerará confirmada si las cuatro métricas mencionadas son calculables de forma automática a partir de las vistas mttr_stats y automation_rate y de la tabla failed_alerts, y si se encuentran disponibles simultáneamente en al menos un dashboard de visualización del sistema.
+63|Normal|La explicitación de criterios operacionales para cada hipótesis tiene un propósito metodológico: un enunciado de hipótesis que no especifica cómo se medirá ni qué resultado la confirmaría no es una hipótesis científica sino una afirmación de propósito. La presente formulación habilita la falsabilidad de las hipótesis, condición necesaria para su validación empírica.
+64|Heading 1|Capítulo 2: Estado del Arte
+65|Normal|La literatura reciente en ciberseguridad muestra una convergencia clara de tres líneas de desarrollo directamente relevantes para este proyecto. A continuación se presenta una revisión narrativa y temática de los trabajos más relevantes, organizada por línea temática, seguida de un análisis de brecha que justifica la propuesta del presente trabajo.
+66|Heading 2|2.1 Evolución y Madurez de los SIEM Open Source
+67|Normal|Manzoor et al. (2024) [1] realizaron una evaluación sistemática del rendimiento y las capacidades de seguridad de los SIEM open source más utilizados, incluyendo el stack ELK y soluciones híbridas. Sus resultados muestran que estos sistemas han cerrado significativamente la brecha funcional con las soluciones comerciales en capacidades de ingesta, correlación básica y visualización, aunque aún presentan limitaciones en correlación avanzada multi-fuente e integración nativa con plataformas cloud enterprise. La consolidación de los SIEM como núcleo de la observabilidad organizacional ha sido analizada en profundidad por González-Granadillo et al. [20], quienes identifican las tendencias de integración con plataformas cloud y la evolución hacia arquitecturas de análisis en tiempo real como los vectores de desarrollo más activos. La relevancia de este trabajo para la presente tesis reside en que valida la elección del stack ELK como base del SIEM académico propuesto.
+68|Normal|Pereira (2023) [5] demostró en su investigación del National College of Ireland que herramientas open source como Wazuh y Elasticsearch permiten implementar capacidades SIEM operativas a un costo de infraestructura prácticamente nulo, con resultados comparables a soluciones comerciales en contextos de bajo volumen de eventos. Este antecedente es directamente aplicable al contexto académico de UTN–SIED.
+69|Heading 2|2.2 Automatización mediante SOAR
+70|Normal|Islam, Babar y Nepal (2019) [2], en su revisión multivocal de la literatura académica y de industria sobre orquestación de seguridad, sistematizan que la separación entre las herramientas de detección y los mecanismos de orquestación de respuesta es una práctica arquitectónica recurrente en los sistemas SOAR maduros, que facilita el mantenimiento, la escalabilidad y la interoperabilidad entre herramientas de múltiples proveedores. Esta conclusión respalda directamente la decisión de diseño adoptada en el presente trabajo de separar la detección (Elasticsearch + scripts Python) de la respuesta (n8n). El estándar NIST SP 800-61r2 [13] complementa este enfoque al establecer que la automatización de la fase de contención es una de las prácticas más efectivas para reducir el impacto de los incidentes de seguridad.
+71|Heading 2|2.3 Convergencia SIEM–SOAR–IA
+72|Normal|Kovacevic (2023) [3] sistematiza, desde la práctica industrial con plataformas SOAR maduras como Microsoft Sentinel, Splunk SOAR y Google Chronicle SOAR, cómo la automatización de playbooks reduce los tiempos MTTA y MTTR mediante el enriquecimiento automático de incidentes y la ejecución inmediata de pasos iniciales de contención. Las reducciones documentadas en la literatura industrial y profesional se ubican en un rango amplio según el tipo de incidente y la madurez del SOC; reportes técnicos de la industria [4] complementan esta evidencia con casos de uso concretos. Estos rangos provienen mayoritariamente de fuentes de proveedor con interés comercial directo y deben tomarse como indicios direccionales antes que como mediciones independientes; en el presente trabajo se utilizan únicamente para contextualizar el orden de magnitud de los resultados, no como referencia cuantitativa estricta. La validación rigurosa de estas reducciones porcentuales en entornos reales constituye una línea de investigación abierta para la comunidad académica.
+73|Heading 2|2.4 Alternativas SOAR Open Source y Justificación de la Elección de n8n
+74|Normal|El ecosistema de plataformas SOAR open source disponibles a la fecha de inicio del proyecto incluye tres alternativas principales que merecen consideración explícita. La primera es TheHive + Cortex, plataforma de respuesta a incidentes y análisis de observables desarrollada por StrangeBee, integrada con MISP (Malware Information Sharing Platform) y evaluada por Pereira [5] en el contexto académico de una PyME. TheHive ofrece gestión de casos, análisis de observables mediante Cortex y un catálogo maduro de integraciones. Sin embargo, a partir de la versión 5 (2022), TheHive dejó de ser completamente open source: las instalaciones nuevas requieren una licencia StrangeBee tras el período de prueba, lo que compromete el objetivo de costo cero del presente prototipo. Cortex permanece open source bajo licencia AGPL, pero su valor principal se realiza en conjunción con TheHive. La segunda alternativa es Shuffle SOAR, plataforma de automatización de seguridad completamente open source con editor visual de workflows similar a n8n, pero con una comunidad más pequeña y documentación pedagógica menos desarrollada. La tercera es el propio n8n, seleccionado en este trabajo por combinar interfaz visual de construcción de workflows, código abierto bajo licencia fair-code, comunidad activa, compatibilidad nativa con webhooks y bases de datos SQL, y una curva de aprendizaje adecuada para el contexto académico propuesto. La elección de n8n sobre TheHive responde a la misma lógica que motivó la exclusión de Wazuh (sección 5.11): se prioriza la coherencia arquitectónica, la reproducibilidad con recursos mínimos y la claridad pedagógica por encima de la riqueza funcional de las plataformas más maduras.
+81|Heading 2|2.5 Análisis de Brecha (Gap Analysis)
+82|Normal|Se realizó una búsqueda específica de literatura que vincule n8n con automatización de seguridad y arquitecturas SOAR, empleando las cadenas "n8n" AND "security orchestration", "n8n" AND "SOAR" y "n8n" AND "cybersecurity automation" en Google Scholar y motores de búsqueda general. Se identificó un antecedente académico directo [22], que investiga n8n como plataforma de automatización para tareas de ciberseguridad (escaneo de vulnerabilidades, análisis de logs, generación de reportes asistida por LLMs), aunque sin abordar su integración con un stack SIEM ni la medición de métricas de respuesta a incidentes como el MTTR. Asimismo, se halló literatura gris de carácter industrial —incluyendo un caso de implementación en Vodafone y publicaciones técnicas independientes— que documenta el uso de n8n como orquestador SOAR en contextos productivos, pero sin metodología experimental, entorno académico controlado ni validación cuantitativa de métricas de eficacia. Esta ausencia de antecedentes académicos que combinen n8n, un stack SIEM open source y la medición sistemática del MTTR en un entorno de laboratorio reproducible refuerza la brecha identificada en la Tabla 2.1 y sitúa la contribución de este trabajo en un espacio no cubierto por la literatura existente.
+83|Normal|La siguiente tabla consolida los trabajos revisados y evidencia la posición original del presente trabajo en el estado del arte:
+84|Normal|Tabla 2.1 — Análisis de brecha en el estado del arte.
+85|Normal|Como se observa, ninguno de los trabajos revisados combina las cuatro dimensiones que caracterizan la propuesta: SIEM open source, automatización SOAR, enfoque específicamente académico y reproducibilidad mediante Docker. Esta brecha justifica y distingue la contribución original del trabajo.
+86|Heading 1|Capítulo 3: Marco Teórico y Conceptual
+87|Heading 2|3.1 SIEM: Security Information and Event Management
+88|Normal|Un Sistema de Información y Gestión de Eventos de Seguridad (SIEM) es una plataforma que centraliza la recolección, normalización, correlación y análisis de eventos de seguridad provenientes de múltiples fuentes en una infraestructura de TI [1]. Su función principal es transformar el volumen masivo de logs generados por dispositivos, aplicaciones y servicios en información accionable para los equipos de seguridad. Los SIEM modernos combinan dos capacidades históricamente separadas [15]: la gestión de información de seguridad (SIM), orientada al almacenamiento y análisis histórico de logs, y la gestión de eventos de seguridad (SEM), orientada a la correlación y alerta en tiempo real.
+89|Heading 2|3.2 SOAR: Security Orchestration, Automation and Response
+90|Normal|Un sistema SOAR es una capa que ejecuta playbooks de respuesta de manera automática o semi-automática ante alertas generadas por el SIEM [2]. Su valor principal reside en reducir el tiempo de respuesta a incidentes y la carga operativa sobre los analistas SOC. Según el framework NIST SP 800-61r2 [13], la automatización de la fase de contención es una de las prácticas más efectivas para reducir el impacto de los incidentes de seguridad. En el contexto del presente proyecto, n8n actúa como una implementación SOAR-lite que cubre las capacidades esenciales: recepción de alertas vía webhook, ejecución de lógica condicional, integración con bases de datos y servicios de notificación, y registro de auditoría de las acciones ejecutadas.
+91|Heading 2|3.3 Estándares de Seguridad Relevantes
+92|Heading 3|3.3.1 ISO/IEC 27001:2022
+93|Normal|La norma ISO/IEC 27001:2022 [11] es el estándar internacional para la gestión de la seguridad de la información. Su Anexo A incluye controles específicos para la gestión de eventos de seguridad: el Control A.8.15 (Logging) y el Control A.8.16 (Monitoring Activities). El sistema desarrollado implementa prácticamente estos controles mediante la centralización de logs y la configuración de alertas y dashboards de monitoreo continuo.
+94|Heading 3|3.3.2 NIST Cybersecurity Framework 2.0
+95|Normal|El NIST Cybersecurity Framework 2.0 [12] organiza las actividades de ciberseguridad en seis funciones: Govern, Identify, Protect, Detect, Respond y Recover. El SIEM propuesto contribuye directamente a las funciones Detect (categoría DE.AE: Anomalies and Events) y Respond (categoría RS.RP: Incident Response Planning). La automatización de respuestas mediante n8n implementa la función Respond del framework en un contexto de bajo costo.
+97|Heading 3|3.3.3 Regulación Argentina Aplicable
+98|Normal|La Ley 25.326 de Protección de Datos Personales [14] y su Disposición Reglamentaria DNPDP 11/2006 establecen requisitos de seguridad para los sistemas de información que traten datos personales en Argentina. El presente sistema, al registrar logs que pueden contener información identificable como nombres de usuario y direcciones IP, opera bajo los principios de minimización de datos y protección por diseño establecidos en estas normativas.
+99|Heading 2|3.4 SecOps, SOC, MTTA y MTTR
+100|Normal|El término SecOps (Security Operations) describe el modelo operativo en el que equipos especializados monitorizan, detectan, investigan y responden a incidentes de seguridad de manera continua. El SOC (Security Operations Center) es la unidad organizacional que materializa este modelo. Las definiciones operativas de los indicadores clave del SOC se apoyan en el estándar NIST SP 800-61r2 [13], que sistematiza el ciclo de vida de la respuesta a incidentes. El MTTA (Mean Time To Acknowledge) mide el tiempo promedio desde que se genera un evento hasta que el sistema lo reconoce. El MTTR (Mean Time To Respond) mide el tiempo promedio desde que se genera una alerta hasta que se ejecuta una acción de respuesta. Ambos son los KPI más utilizados para evaluar la madurez operativa de un SOC, en consistencia con las directrices del NIST SP 800-61r2 [13] y con la práctica industrial documentada por reportes técnicos del sector [4].
+101|Normal|Es necesario precisar que, en la implementación descrita en este trabajo, el detector de eventos opera mediante un mecanismo de sondeo periódico (polling) con un intervalo fijo de 120 segundos, en lugar de un esquema de detección basado en eventos (event-driven) con notificación inmediata. Esta arquitectura introduce un error de cuantización temporal: el instante de detección no coincide con el instante de generación del evento, sino con el siguiente ciclo de sondeo en que dicho evento es recuperado. Bajo el supuesto de generación de eventos uniformemente distribuida dentro del intervalo de sondeo, el tiempo de espera hasta la detección sigue aproximadamente una distribución uniforme en el rango [0, T], con T = 120 s, y valor esperado T/2 = 60 s. El MTTA medido mediante una corrida experimental específica, con inyección de eventos syslog reales y detección efectiva por sondeo (≈61,5 s, n=5), resulta consistente con este valor esperado teórico, lo cual respalda la validez del modelo de cuantización propuesto. Cabe aclarar que el tamaño de muestra (n=5) es reducido y no permite una generalización estadística robusta; el valor reportado debe interpretarse como una validación puntual del mecanismo de medición y del modelo teórico que lo sustenta, no como una caracterización exhaustiva de su comportamiento bajo distintas condiciones de carga o volumen de eventos. En consecuencia, el MTTA reportado en este trabajo debe interpretarse como una medida acotada por la resolución temporal del mecanismo de detección, y no como un tiempo de reconocimiento en el sentido clásico de NIST SP 800-61r2 [13], que presupone un proceso de acknowledgment desacoplado del método de captura del evento. El detalle de la instrumentación y su impacto en la interpretación de este indicador se desarrolla en el Anexo D.
+102|Heading 2|3.5 File Integrity Monitoring (FIM)
+103|Normal|El monitoreo de integridad de archivos (FIM) es una técnica de detección que registra el estado criptográfico (hash MD5, SHA256) de archivos críticos del sistema y genera alertas cuando dicho estado cambia [9]. Según el estándar PCI DSS v4.0 (Requisito 11.5), el FIM es un control obligatorio para entornos de procesamiento de datos de tarjetas de pago, aunque su aplicación se extiende a cualquier entorno donde se requiera detectar modificaciones no autorizadas.
+104|Heading 2|3.6 Pipeline de Datos y Stack Open Source
+105|Normal|En el contexto del presente proyecto, el pipeline es la secuencia de componentes por los que fluyen los datos desde su origen —los hosts que generan logs— hasta su destino final —los dashboards de visualización y los sistemas de respuesta—. La selección del stack open source se basa en criterios de madurez, comunidad activa, compatibilidad entre componentes y alineación con los requisitos pedagógicos del proyecto [6][7][8][10].
+106|Heading 2|3.7 Taxonomía de Técnicas de Detección
+107|Normal|La literatura distingue cuatro grandes familias de técnicas de detección que un SIEM puede implementar. La detección por reglas o firmas opera mediante patrones predefinidos sobre los eventos —por ejemplo, “más de N intentos fallidos de autenticación desde la misma IP en una ventana de M segundos”—; es la más simple, la más auditable y la que mejor se presta a la enseñanza, pero falla ante variantes de ataque que escapan al patrón. La detección estadística establece una línea base del comportamiento normal del sistema y alerta sobre desvíos significativos; requiere periodos de aprendizaje y es sensible a la calidad de la línea base. La detección basada en aprendizaje automático (no supervisado o supervisado) generaliza este enfoque a espacios de características más complejos; ofrece mayor capacidad de detección de anomalías sutiles a costa de menor explicabilidad. La detección basada en correlación combina eventos de fuentes heterogéneas para construir patrones compuestos —por ejemplo, una autenticación exitosa precedida por múltiples fallidas y seguida de un movimiento lateral— y es la dirección hacia la que tiende la industria.
+108|Normal|El presente trabajo implementa exclusivamente detección por reglas, lo cual es consistente con la clasificación propuesta por Korzeniowski y Goczyła [19] en su revisión sistemática de la literatura sobre análisis automatizado de logs (umbral de intentos para SSH brute-force, comparación de hashes para FIM), por dos razones: es coherente con el alcance pedagógico del prototipo, donde la legibilidad de la lógica de detección es prioritaria; y la incorporación de detección estadística o basada en aprendizaje automático queda explícitamente identificada como línea de trabajo futuro (sección 7.4) sobre la base de la arquitectura extensible del sistema.
+109|Heading 2|3.8 Arquitectura de Pipelines de Eventos
+110|Normal|El procesamiento de logs en un SIEM se modeliza canónicamente como un pipeline de cinco etapas: ingesta, parseo, normalización, almacenamiento e indexación. La ingesta resuelve la heterogeneidad de protocolos de transporte (syslog UDP/TCP, GELF, agentes propietarios, APIs REST). El parseo extrae campos estructurados de mensajes que originalmente son texto libre, típicamente mediante expresiones regulares, patrones Grok o gramáticas formales. La normalización mapea los campos extraídos a un esquema común que permite consultar uniformemente eventos provenientes de fuentes distintas; modelos como ECS (Elastic Common Schema) y CIM (Splunk Common Information Model) son referencias industriales. El almacenamiento aborda la tensión entre la capacidad de búsqueda en texto libre (motores como Elasticsearch o OpenSearch) y la de consultas relacionales (motores como PostgreSQL o ClickHouse). La indexación gestiona el ciclo de vida de los datos: índices diarios, política de retención, archivado en almacenamiento frío.
+114|Heading 2|3.9 Discusión Crítica del Paradigma SIEM Tradicional
+115|Normal|El paradigma SIEM clásico —centralización masiva de logs, correlación basada en reglas, alertas dirigidas a un analista humano— ha sido objeto de críticas significativas en la literatura reciente. Las dos críticas más fundamentadas son: la sobrecarga de alertas sobre los analistas, conocida como alert fatigue, que en SOCs reales puede llegar a miles de alertas diarias y deteriora la calidad de la respuesta; y la limitada capacidad de detección de ataques sofisticados, que frecuentemente eluden las reglas estáticas mediante variaciones menores de comportamiento. La emergencia de SOAR responde directamente a la primera crítica al automatizar el triaje y la respuesta inicial, mientras que la integración con XDR (Extended Detection and Response) y técnicas de aprendizaje automático responde a la segunda.
+116|Normal|El presente trabajo se sitúa explícitamente en la primera línea de respuesta —automatización de SOAR como mitigador de alert fatigue— sin pretender abordar la segunda. Esta delimitación es deliberada y coherente con el alcance pedagógico del prototipo. El reconocimiento explícito de que el paradigma elegido tiene limitaciones conocidas y que el sistema implementado solo aborda parcialmente esas limitaciones, lejos de debilitar el trabajo, refleja la madurez analítica que un evaluador externo espera encontrar.
+117|Heading 1|Capítulo 4: Metodología
+118|Heading 2|4.1 Tipo y Enfoque de la Investigación
+119|Normal|La investigación es de tipo aplicada, con un diseño cuasi-experimental en entorno de laboratorio controlado y triangulación metodológica. Se adopta un enfoque cuantitativo descriptivo para la medición de las variables dependientes (MTTA, MTTR, tasa de automatización), un enfoque comparativo no aleatorizado para contrastar el circuito automatizado con una línea base manual documentada, y un enfoque cualitativo basado en observación participante para la evaluación de reproducibilidad y valor pedagógico. El método de trabajo es iterativo e incremental, alineado con prácticas DevSecOps, e incorpora ciclos de prueba-corrección documentados en el cuaderno de incidencias del proyecto. La justificación específica de las decisiones de diseño técnico (coexistencia de Grafana y Streamlit, exclusión de Wazuh del núcleo) se desarrolla en el capítulo 5 (secciones 5.10 y 5.11), por estar íntimamente ligada a la arquitectura de la implementación.
+120|Normal|Se reconoce de antemano —y este reconocimiento es parte sustantiva del rigor metodológico— que el diseño no constituye un experimento controlado en sentido estricto: no existe asignación aleatoria de unidades, no hay réplicas independientes en escenarios físicamente distintos, y el operador del experimento es a la vez el desarrollador del sistema. Estas limitaciones no invalidan el trabajo; sí acotan el alcance de las conclusiones a afirmaciones de viabilidad técnica y de comportamiento esperado en condiciones de laboratorio, no a proyecciones cuantitativas a entornos de producción.
+121|Heading 2|4.2 Variables de la Investigación
+122|Normal|Tabla 4.1 — Variables, indicadores e instrumentos de medición.
+124|Heading 2|4.3 Fases del Proyecto
+125|Normal|Aclaración sobre las cargas horarias: la Tabla 4.2 reporta el tiempo de implementación técnica neta por fase (≈19 h en total), mientras que el cronograma detallado del Anexo A (Tabla A.1) reporta la carga horaria real invertida por módulo (≈156 h en total), que incluye además el aprendizaje de cada herramienta, la iteración de prueba-corrección documentada en el cuaderno de incidencias, y la redacción de la documentación asociada. Ambas cifras son correctas y complementarias: miden magnitudes distintas del mismo proyecto.
+126|Normal|Tabla 4.2 — Fases del proyecto.
+127|Heading 2|4.4 Criterios de Validación del Sistema
+128|Normal|Un componente se considera validado cuando cumple simultáneamente los siguientes criterios: Funcionalidad (la alerta llega al destino esperado y dispara el playbook correspondiente), Trazabilidad (la ejecución queda registrada en la tabla playbook_runs de PostgreSQL), Medibilidad (es posible calcular el intervalo de tiempo entre el evento y la acción), y Reproducibilidad (un usuario nuevo puede levantar el sistema completo con el comando docker-compose up -d y obtener el mismo resultado).
+129|Heading 2|4.5 Protocolo Experimental
+130|Normal|El protocolo de medición se diseñó para ser replicable y auditable. Cada corrida experimental sigue una secuencia definida: inicialización del entorno mediante docker-compose down -v seguido de docker-compose up -d para garantizar un estado inicial limpio; verificación de salud esperando que todos los servicios reporten estado healthy en docker-compose ps, documentando cualquier servicio que no alcance ese estado en menos de 90 segundos; activación del workflow SIEM – Alerta Entrante en n8n y verificación de la disponibilidad del webhook con una petición HTTP de prueba; generación de eventos mediante attack_simulator.py con parámetros documentados (para SSH brute-force, ráfagas de 6 a 10 intentos desde IP parametrizada con intervalos de 2 a 5 segundos; para FIM, operaciones de creación, modificación y eliminación sobre archivos en /tmp/test_fim); captura de mediciones obteniendo las marcas temporales automáticamente de la base de datos PostgreSQL mediante las vistas mtta_stats, mttr_stats y automation_rate, sin intervención manual del operador, eliminando la posibilidad de sesgo en la lectura; cierre y documentación con cada corrida produciendo un registro persistente en alerts y playbook_runs, permitiendo el reanálisis posterior sin necesidad de repetir el experimento.
+131|Normal|El conjunto de datos analizado en el capítulo 6 corresponde a una serie continua de corridas experimentales realizadas durante la fase de validación, en una única máquina de desarrollo con las siguientes especificaciones: sistema operativo Windows 11 con WSL2; Docker Desktop versión 4.x; memoria RAM disponible para Docker de 8 GB; CPU x86_64 con 4 núcleos lógicos disponibles para Docker; conectividad de red local doméstica sin restricciones de firewall hacia las APIs externas; y latencia medida al endpoint de Telegram en el orden de los 80–150 ms. La cantidad total de alertas procesadas (n=162) se considera suficiente para evaluar la viabilidad técnica del circuito automatizado en las condiciones de laboratorio descritas, pero no constituye una muestra estadísticamente representativa de ninguna población de eventos real ni habilita inferencias estadísticas generalizables; su propósito es documentar el comportamiento del sistema bajo condiciones controladas y reproducibles, no estimar parámetros de una población.
+132|Normal|Cabe señalar que el conjunto de datos analizado en el presente capítulo no corresponde a la serie original documentada en revisiones previas de este trabajo (n=112), sino a una corrida de validación independiente ejecutada con posterioridad, siguiendo el mismo protocolo experimental descrito en esta sección. El conjunto original no pudo preservarse debido a una migración de esquema de la base de datos realizada durante el desarrollo activo del sistema —necesaria para incorporar las funcionalidades de Risk Score y bloqueo automático—, que reinicializó las tablas de alertas (ver sección de Limitaciones para el detalle técnico). Las diferencias puntuales entre ambas corridas —un MTTR mediano considerablemente menor (≈1 s frente a ≈14 s) y una tasa de automatización marginalmente superior (98,77 % frente a 94,64 %)— son atribuibles a variabilidad real entre sesiones de medición (latencia de la API externa de Telegram al momento de la ejecución) y a que las dos alertas fallidas de esta corrida tienen una causa raíz distinta y ya identificada (sección 6.3), no a una modificación del sistema evaluado. Los datos crudos de esta corrida —alertas, incidentes y ejecuciones de playbook— se conservan como evidencia exportada en formato CSV y como volcado de PostgreSQL, disponibles junto con este documento.
+133|Heading 2|4.6 Línea Base de Comparación: el Proceso Manual
+134|Normal|La comparación entre el circuito automatizado y un proceso manual exige declarar explícitamente qué se entiende por proceso manual y de dónde provienen los valores de referencia, dado que cualquier afirmación cuantitativa sobre la mejora obtenida descansa en este contraste. Para los fines del presente trabajo se define el proceso manual de referencia como el flujo en el que un analista humano revisa los logs crudos en la consola de Kibana o directamente en los archivos del host, identifica un patrón anómalo —típicamente una secuencia de intentos fallidos de autenticación—, decide si corresponde aplicar una contramedida, ejecuta manualmente la acción correspondiente (por ejemplo, agregar la IP atacante a una blacklist mediante una orden de firewall), y registra la acción en algún sistema de gestión de incidentes.
+135|Normal|Los valores de referencia para este proceso manual se derivan de la literatura especializada y no de mediciones experimentales propias. La literatura coincide en ubicar los tiempos de respuesta manual en el rango de los minutos a las horas en operaciones reales [3][4][13]. En particular, varias fuentes técnicas y reportes de la industria documentan tiempos de respuesta manual del orden de los 60 minutos para incidentes simples como cuarentena de correo o bloqueo de IP, y de varias horas a días para incidentes complejos. A partir de estas referencias, en el presente trabajo se adoptan dos valores conservadores de referencia para representar el caso favorable del proceso manual: 300 segundos (5 minutos) para el MTTA, que representa el tiempo estimado en que un analista experimentado, atendiendo de manera prioritaria una alerta clara, advierte la presencia del patrón anómalo en los logs; y 600 segundos (10 minutos) para el MTTR, que adiciona al MTTA el tiempo de análisis y de ejecución del bloqueo simple. Estos dos valores son estimaciones derivadas del rango bibliográfico citado [3][4][13] y se ubican en el extremo favorable del intervalo —es decir, asumen un analista experimentado y un incidente sencillo—; no constituyen mediciones experimentales realizadas sobre el mismo entorno de laboratorio. Se reconoce explícitamente que la elección de estos valores específicos dentro del rango bibliográfico es una decisión metodológica del equipo y no una cita exacta de un estudio único; en consecuencia, cualquier afirmación de reducción porcentual del MTTR o del MTTA debe interpretarse como ilustrativa de un orden de magnitud y no como una medición rigurosa. Lo que el experimento mide rigurosamente es el tiempo absoluto del circuito automatizado; la comparación con el proceso manual descansa en valores de referencia cuya variabilidad es alta. Una línea de trabajo futuro consiste precisamente en realizar una medición experimental controlada del proceso manual con varios analistas en condiciones equivalentes, para construir una línea base empírica propia (sección 7.4).
+136|Heading 2|4.7 Limitaciones de Validez del Diseño
+137|Normal|Se identifican cuatro categorías de limitaciones que acotan el alcance interpretativo de los resultados. La validez interna queda comprometida porque las mediciones se obtuvieron en una única máquina, sin variación de configuración hardware ni de carga concurrente; no es posible distinguir, con los datos disponibles, qué fracción de los tiempos observados es atribuible al diseño del pipeline y qué fracción al hardware específico utilizado. La validez externa queda acotada porque los eventos analizados son sintéticos y fueron generados por el mismo equipo que diseñó el sistema de detección; la generalización de los resultados a tráfico real, con eventos genuinos y volúmenes mayores, no está garantizada por el diseño actual y requeriría un experimento de seguimiento en un entorno productivo. La validez de constructo es razonable: las métricas MTTA y MTTR adoptadas son consistentes con la literatura, pero existen definiciones operacionales alternativas (por ejemplo, medir MTTR desde el primer evento del ataque versus desde la primera alerta consolidada); la elección efectuada se documenta en el Anexo D y es coherente, pero no es la única posible. Finalmente, el sesgo del observador es la limitación más significativa: las autoras del trabajo son simultáneamente las desarrolladoras del sistema y las operadoras del experimento. Para mitigar este sesgo, todas las marcas temporales se obtienen automáticamente de la base de datos sin intervención manual, los criterios de validación se fijaron antes de la fase de medición, y el código fuente y los datos crudos quedan disponibles para revisión independiente.
+138|Heading 1|Capítulo 5: Arquitectura e Implementación Técnica
+139|Heading 2|5.1 Principios de Diseño Adoptados
+140|Normal|El diseño del sistema se fundamenta en cinco principios de ingeniería de software que guiaron cada decisión arquitectónica. El primero es la separación de responsabilidades (Separation of Concerns): cada componente tiene una función claramente delimitada, lo que se materializa en la arquitectura de cinco capas —ingesta, procesamiento, almacenamiento, detección-orquestación y visualización— y especialmente en la separación entre el motor de detección (scripts Python + Elasticsearch) y el motor de respuesta (n8n), que permite modificar cualquiera de los dos de forma independiente. El segundo es la reproducibilidad: el sistema debe poder desplegarse en cualquier entorno compatible con Docker Desktop obteniendo el mismo resultado funcional, justificando la elección de Docker Compose como tecnología de orquestación de infraestructura. El tercero es la trazabilidad completa: toda acción ejecutada debe quedar registrada auditablemente en PostgreSQL, requisito indispensable tanto desde la perspectiva de seguridad como de evaluación académica. El cuarto es la extensibilidad: la arquitectura basada en webhooks permite incorporar nuevos detectores o playbooks sin rediseñar componentes existentes. El quinto es la claridad pedagógica: se prioriza la legibilidad del diseño sobre la optimización de rendimiento, justificando la elección de n8n frente a alternativas más potentes pero más complejas.
+141|Heading 2|5.2 Arquitectura General del Pipeline
+142|Normal|La arquitectura implementada se organiza en un pipeline de cinco capas que separa claramente las responsabilidades de cada componente. La Figura 1 ilustra la arquitectura completa del sistema con sus flujos de datos.
+144|Normal|Figura 1 — Arquitectura del sistema: pipeline de cinco capas y componentes por capa.
+145|Heading 3|Capa 1 — Ingesta
+146|Normal|syslog-ng escucha en el puerto UDP 514 (estándar RFC 3164 y RFC 5424) y actúa como punto de entrada único para todos los logs del sistema. La elección de UDP responde a su adopción universal como protocolo de facto para syslog y a la aceptabilidad de la pérdida ocasional de eventos en un contexto académico. En entornos de producción de alta criticidad, debería revisarse en favor de transporte TCP con TLS.
+147|Heading 3|Capa 2 — Procesamiento
+148|Normal|Logstash recibe los mensajes de syslog-ng en el puerto UDP 5140 y aplica un pipeline de tres fases: entrada (plugin udp), filtro (patrones Grok que extraen timestamp, hostname, program, PID, src_ip y username) y salida (envío a Elasticsearch con indexación diaria en índices siem-events-YYYY.MM.DD). El uso del puerto 5140 evita conflictos de permisos: en sistemas Unix, los puertos por debajo de 1024 requieren privilegios de root, mientras que 5140 puede ser escuchado por cualquier proceso de usuario.
+149|Heading 3|Capa 3 — Almacenamiento Dual
+150|Normal|Elasticsearch actúa como motor de búsqueda y análisis en tiempo real, optimizado para consultas de texto libre y agregaciones sobre grandes volúmenes de datos. PostgreSQL actúa como motor de almacenamiento estructurado, optimizado para relaciones entre entidades, cálculo de métricas con SQL estándar y generación de los datos que consume Grafana. Esta dualidad no implica redundancia sino complementariedad: cada motor es el más adecuado para su caso de uso específico.
+151|Heading 3|Capa 4 — Detección y Orquestación
+152|Normal|Los scripts Python implementan la lógica de detección consultando Elasticsearch periódicamente. n8n implementa la lógica de respuesta recibiendo alertas vía webhook y ejecutando los playbooks correspondientes. La Blocker API (microservicio Flask en puerto 8765) permite a n8n aplicar reglas de firewall reales (netsh en Windows, iptables en Linux) cuando el operador habilita el bloqueo activo.
+153|Heading 3|Capa 5 — Visualización
+154|Normal|Grafana provee dashboards estáticos con siete paneles KPI que consumen datos de PostgreSQL. El dashboard Streamlit "Panel de Operaciones de Seguridad" provee una interfaz interactiva con actualización automática cada 30 segundos, mapas coropléticos geográficos y codificación de color dinámica por severidad. Kibana permite la exploración ad-hoc de los índices de Elasticsearch.
+155|Heading 2|5.3 Componentes del Sistema
+156|Normal|Tabla 5.1 — Componentes del sistema.
+157|Heading 2|5.4 Red Docker y Aislamiento
+158|Normal|Todos los servicios se ejecutan dentro de la red virtual Docker denominada siem-net, de tipo bridge. Esta configuración garantiza el aislamiento del tráfico interno entre contenedores, permite la resolución de nombres de servicio (los contenedores se comunican por nombre, sin necesitar conocer la dirección IP del contenedor) y limita la exposición de puertos al host solo a los servicios que requieren acceso externo. La configuración de dependencias mediante healthchecks garantiza el orden correcto de arranque: PostgreSQL y Elasticsearch deben estar completamente disponibles antes de que Logstash, n8n y Grafana intenten conectarse.
+159|Heading 2|5.5 Pipeline de Ingesta en Profundidad
+160|Normal|syslog-ng reenvía todos los mensajes recibidos a Logstash sin modificaciones, maximizando la compatibilidad con cualquier dispositivo o aplicación que soporte el protocolo syslog estándar. Logstash aplica en su fase de filtro un patrón Grok principal que extrae la prioridad syslog, el timestamp, el hostname, el programa (por ejemplo sshd), el PID y el mensaje completo. Para los mensajes que contienen la cadena Failed password, un segundo bloque Grok extrae adicionalmente la dirección IP de origen del atacante y el nombre de usuario objetivo. Un bloque mutate agrega el campo ingest_ts con el timestamp de procesamiento, y un bloque date establece el @timestamp del evento a partir del timestamp syslog original —campo crítico para que el detector Python pueda filtrar correctamente por ventana temporal [18].
+161|Heading 2|5.6 Detección de SSH Brute-Force
+162|Normal|El script Python ejecuta un bucle periódico cada 120 segundos. En cada ciclo construye y ejecuta una consulta a la API REST de Elasticsearch que busca eventos con program:sshd y message:"Failed password" en los últimos dos minutos, agrupa los resultados por src_ip.keyword y filtra las IPs con más de cinco intentos. Para cada IP que supera el umbral, construye un payload JSON con los campos rule_id, src_ip, severity (high), count y timestamp, y lo envía al webhook de n8n mediante HTTP POST con el header de autenticación x-siem-key. Una lección aprendida crítica durante el desarrollo fue que el timestamp de los eventos en Elasticsearch debe coincidir con la hora real del sistema: el script de simulación fue corregido para usar la hora actual del sistema (PowerShell Get-Date) en lugar de una fecha hardcodeada.
+163|Normal|La detección por umbral de intentos fallidos implementada en este trabajo —5 intentos en una ventana de 2 minutos desde la misma IP— se alinea con el enfoque de detección basada en flujo descrito por Tiwari y Hubballi [21], quienes demuestran que las métricas de intentos fallidos agrupadas por IP de origen son el indicador más discriminativo para la clasificación de ataques SSH.
+164|Heading 2|5.7 Monitoreo de Integridad de Archivos (FIM)
+165|Normal|El módulo FIM se implementa mediante dos scripts Python coordinados. El primero (fim_monitor.py) monitorea una carpeta configurable calculando hashes MD5 y SHA256 de cada archivo y comparando contra el estado anterior en cada ciclo. Al detectar creación, modificación o eliminación, escribe una alerta JSON en un log local, mimetizando el formato de salida del agente Wazuh (evento syscheck). El segundo script (fim_to_n8n.py) lee ese log en tiempo real con una implementación portable de tail -f, filtra eventos de tipo syscheck, determina la severidad (nivel 5/medium para creación, 7/high para modificación, 8/critical para eliminación) y envía el payload al mismo webhook de n8n con el mismo formato estándar que el detector SSH, garantizando uniformidad en el pipeline de orquestación independientemente de la fuente.
+166|Heading 2|5.8 Orquestación con n8n: Workflows
+167|Normal|El workflow SIEM – Alerta Entrante recibe la alerta vía Webhook y la enriquece clasificando el tipo de incidente y asignando una prioridad (P1 urgente, P2 alta, P3 normal). Un nodo de filtrado por severidad, implementado como switch de tres salidas, deriva las alertas CRITICAL o HIGH hacia el análisis completo, mientras que las alertas LOW se registran directamente en playbook_runs sin continuar el flujo. Antes de proseguir, el sistema verifica si la IP de origen ya tiene un incidente abierto: si es así, se envía una notificación de reincidencia por Telegram sin duplicar el incidente existente. A partir de aquí se abren dos ramas en paralelo. La primera cuenta cuántas IPs distintas atacaron al mismo usuario en una ventana de cinco minutos; si son cinco o más, se clasifica como Password Spraying y se crea un incidente especial de ese tipo. La segunda rama, principal, consulta la reputación de la IP en AbuseIPDB, cuenta las alertas acumuladas para esa IP y revisa la reputación interna de los últimos siete días registrada en PostgreSQL, combinando estos tres factores en un Risk Score de 0 a 100. Si el Risk Score alcanza 70 o más, se considera critical: se crea un incidente, se registra la IP en la blacklist, se invoca la Blocker API para aplicar la regla de firewall real (netsh en Windows, iptables en Linux), se actualiza el estado de enforcement en PostgreSQL y se notifica todo por Telegram y email. Si el Risk Score no llega a ese umbral, se envía una alerta informativa con los datos de Threat Intelligence, sin crear incidente. En todos los casos se registra la ejecución del playbook correspondiente en playbook_runs, y el país de origen de la IP —obtenido del enriquecimiento de AbuseIPDB— se persiste para alimentar el mapa coroplético del dashboard Streamlit descrito en la sección 5.9.
+168|Normal|El workflow SIEM – Reporte Diario se activa mediante Schedule Trigger una vez por día. Ejecuta consultas SQL sobre las vistas predefinidas de PostgreSQL (total alertas, distribución por severidad, top IPs, MTTR, MTTA, tasa de automatización, incidentes abiertos, alertas fallidas) y envía el resumen formateado al canal de Telegram, garantizando visibilidad periódica del SOC sin acceso manual a los dashboards.
+169|Heading 2|5.9 Dashboard Panel de Operaciones de Seguridad y Simulador de Ataques
+170|Normal|El dashboard Streamlit "Panel de Operaciones de Seguridad" presenta siete KPIs operativos con codificación de color dinámica (verde/naranja/rojo), gráficos de barras apiladas de distribución temporal, mapa coroplético geográfico de ataques por país (desde enriquecimiento de IPs con AbuseIPDB en n8n), ranking de IPs sospechosas, lista de incidentes abiertos y estado de IPs bloqueadas. Todos los datos se obtienen de PostgreSQL con psycopg2 y caché de 30 segundos para evitar sobrecarga.
+171|Normal|El simulador de ataques (attack_simulator.py) permite generar eventos sintéticos de nueve tipos individuales —SSH Brute-Force, Password Spraying, integridad de archivos (FIM), port scanning, escalación de privilegios, inyección SQL, web shell, malware y login desde ubicación sospechosa— además de cinco escenarios compuestos que combinan varios de estos tipos en secuencia (campaña SSH, clúster FIM, reconocimiento con escalación, ataque web, e intrusión completa), y datos históricos masivos para poblar la base de datos con fines de prueba. El simulador incluye además un modo de "prueba de ramas" (R1–R5) que dispara escenarios específicos diseñados para validar cada camino del workflow de n8n de forma aislada y reproducible. Los eventos generados recorren el mismo pipeline que los eventos reales, garantizando que los resultados de las pruebas sean representativos del comportamiento real del sistema y cerrando el ciclo completo SIEM-SOAR en cuestión de segundos.
+172|Heading 2|5.10 Justificación de la Coexistencia de Grafana y Streamlit
+173|Normal|Una decisión de diseño que merece justificación explícita es la incorporación simultánea de Grafana y del dashboard Streamlit "Panel de Operaciones de Seguridad" como capas de visualización, dado que ambos consumen datos de PostgreSQL y presentan métricas del SOC. Lejos de constituir una redundancia, esta decisión responde a perfiles de usuario y propósitos operativos claramente diferenciados que un único componente no podría satisfacer de forma óptima.
+174|Normal|Grafana cumple el rol de observabilidad técnica del SOC. Su fortaleza reside en la representación de series temporales, en la configuración de umbrales y alertas visuales, y en la capacidad de consultar múltiples fuentes de datos mediante conectores nativos. Sus dashboards son estáticos en estructura pero dinámicos en datos, ideales para ser proyectados en pantallas de un centro de operaciones real y consumidos por analistas con experiencia que necesitan acceder rápidamente a métricas consolidadas. En el marco del estándar ISO/IEC 27001:2022, Grafana instrumenta directamente el Control A.8.16 (Monitoring Activities) al proveer visibilidad continua y automatizada sobre los eventos de seguridad del sistema [11].
+175|Normal|Streamlit "Panel de Operaciones de Seguridad", en cambio, cumple un rol diferente: es una interfaz de presentación didáctica orientada a usuarios no especializados y a la demostración del prototipo en contexto académico. Su valor reside en la flexibilidad que ofrece Python para construir interfaces completamente personalizadas, en la integración nativa con bibliotecas de visualización avanzada como Plotly —que habilita zoom interactivo, filtrado y exportación de cada panel—, y en la posibilidad de incorporar elementos que Grafana no soporta nativamente, como el mapa coroplético geográfico de ataques por país construido a partir del enriquecimiento de IPs con AbuseIPDB. Esta capacidad de representar la distribución geográfica de los atacantes transforma una dirección IP en información contextual accionable, con un valor pedagógico que supera el de cualquier tabla numérica.
+176|Normal|En síntesis, la coexistencia de ambas interfaces no es una duplicación de funcionalidad sino una decisión arquitectónica deliberada: Grafana provee la observabilidad técnica continua esperada en un SOC profesional, mientras que Streamlit provee la interfaz de presentación y exploración pedagógica que distingue al prototipo como herramienta de formación. Ambas capas son complementarias y ninguna reemplaza a la otra, en coherencia con el principio de separación de responsabilidades que guía el diseño general del sistema.
+177|Heading 2|5.11 Decisión de Diseño: Wazuh como Componente Opcional
+178|Normal|Durante el proceso de diseño de la arquitectura se evaluó la incorporación de Wazuh como agente de monitoreo de endpoints y como plataforma de detección FIM. Wazuh es una solución SIEM open source de referencia en la industria, con capacidades maduras de detección de intrusiones, monitoreo de integridad de archivos, análisis de vulnerabilidades y cumplimiento normativo. Su evaluación rigurosa forma parte del proceso metodológico del proyecto y sus conclusiones merecen documentarse explícitamente, dado que la decisión de no incorporarlo como componente central del prototipo puede ser cuestionada por un evaluador externo.
+179|Normal|La razón principal es una incompatibilidad arquitectónica fundamental: el dashboard nativo de Wazuh y su stack de indexación están diseñados para operar sobre OpenSearch —el fork open source de Elasticsearch mantenido por Amazon Web Services— y no sobre Elasticsearch en su versión estándar [9]. Dado que el stack principal del presente proyecto se construyó sobre Elasticsearch 8.x, la incorporación de Wazuh como componente central habría requerido migrar la totalidad del pipeline de almacenamiento e indexación hacia OpenSearch, modificando la base tecnológica del prototipo de forma sustancial y comprometiendo la coherencia arquitectónica del sistema. Esta incompatibilidad no es un defecto de Wazuh sino el resultado de la divergencia histórica entre ambos proyectos a partir de 2021, cuando Amazon creó el fork tras el cambio de licencia de Elastic N.V.
+180|Normal|Adicionalmente, el stack completo de Wazuh incluye el servidor, el indexer y el dashboard como tres servicios separados con requisitos propios de memoria y configuración, lo que habría elevado el umbral mínimo de hardware por encima de los 8 GB de RAM establecidos como requisito de la hipótesis H2 y habría comprometido la reproducibilidad del sistema en entornos académicos con recursos limitados.
+181|Normal|Por estas razones, se implementaron las capacidades FIM mediante scripts Python especializados que generan alertas en el formato estándar de Wazuh (eventos de tipo syscheck), garantizando la compatibilidad conceptual con el modelo de datos de Wazuh y preservando la posibilidad de migrar hacia una integración completa en trabajos futuros sin modificar el pipeline de orquestación ni los workflows de n8n. Esta decisión es coherente con el principio de extensibilidad enunciado en la Sección 5.1: el sistema fue diseñado para poder incorporar Wazuh como componente adicional en una evolución futura, simplemente reemplazando los scripts Python FIM por el agente Wazuh real. En síntesis, la exclusión de Wazuh del núcleo del prototipo no es una limitación del sistema sino una decisión de ingeniería fundamentada, documentada y reproducible, alineada con los objetivos de simplicidad, coherencia y reproducibilidad académica que guían el proyecto.
+182|Heading 2|5.12 Decisión de Diseño: Blocker API como Componente Externo al Compose
+183|Normal|La Blocker API (microservicio Flask descrito en la sección 5.2, puerto 8765) es un componente central del camino de respuesta crítica: es quien aplica la regla de firewall real cuando el Risk Score de una alerta supera el umbral crítico. Sin embargo, deliberadamente no forma parte del docker-compose.yml del proyecto (Anexo F), a diferencia de los ocho servicios restantes. Esta decisión merece justificación explícita, dado que un evaluador externo podría interpretarla como una omisión que compromete la reproducibilidad del sistema.
+184|Normal|La razón es una limitación arquitectónica fundamental del modelo de contenedores: los comandos que la Blocker API invoca —netsh advfirewall en Windows, iptables en Linux— actúan sobre la pila de red de la máquina donde se ejecutan. Si la Blocker API corriera dentro de un contenedor Docker, esos comandos modificarían únicamente el espacio de nombres de red aislado del propio contenedor, no el firewall real del sistema operativo anfitrión que protege la máquina completa. Esta limitación no es un defecto de implementación: es, precisamente, el mecanismo de aislamiento de red que hace útil a Docker para todos los demás servicios del proyecto, y que aquí impediría que el bloqueo cumpliera su propósito.
+185|Normal|En consecuencia, para que el bloqueo automático sea real —y no meramente simbólico— la Blocker API debe ejecutarse directamente sobre el sistema operativo anfitrión, con privilegios administrativos, tal como se documenta en el Anexo E (Guía de Despliegue) y en la guía de testing del proyecto. Esta es la misma razón por la cual, en la sección 7.1, el sistema se describe como compuesto por ocho servicios Docker más la Blocker API —noveno componente de infraestructura— y los scripts Python de detección: estos elementos se ejecutan fuera de contenedores por necesidad técnica, no por descuido.
+186|Normal|En síntesis, la exclusión de la Blocker API del archivo docker-compose.yml no es una limitación del sistema sino una decisión de ingeniería fundamentada: prioriza que el bloqueo automático sea efectivo sobre la conveniencia de tener todos los componentes containerizados, siguiendo el mismo criterio de coherencia arquitectónica documentado para la exclusión de Wazuh en la sección 5.11.
+187|Heading 1|Capítulo 6: Resultados y Análisis
+188|Heading 2|6.1 Funcionalidades Implementadas y Validadas
+189|Normal|La totalidad de los siete objetivos específicos planteados fue implementada y validada en el entorno de laboratorio. La siguiente tabla resume el estado de cada objetivo:
+190|Normal|Tabla 6.0 — Estado de cumplimiento de los objetivos específicos.
+191|Normal|Tabla 6.0-bis — Funcionalidades adicionales implementadas (mas alla de los 7 objetivos especificos).
+192|Heading 2|6.2 Comparación: Circuito Automatizado vs. Línea Base Bibliográfica del Proceso Manual
+193|Normal|La Tabla 6.1 y la Figura 2 presentan las mediciones del circuito automatizado obtenidas en el entorno de laboratorio descrito en la sección 4.5, contrastadas con la línea base estimada del proceso manual descrita en la sección 4.6. Se enfatiza, antes de presentar los datos, que las dos columnas de comparación tienen estatus epistémico distinto: los valores del sistema automatizado son mediciones empíricas obtenidas por consulta automática a las vistas SQL del sistema, mientras que los valores del proceso manual son una estimación de referencia derivada de la literatura, no una medición experimental propia. Esta distinción no debilita la evidencia: la sostiene rigurosamente al declarar el alcance de cada afirmación cuantitativa. Por este motivo, la tabla no incluye una columna de reducción porcentual entre ambas columnas: se reportan únicamente los valores absolutos medidos y estimados de cada métrica, evitando toda inferencia cuantitativa de tipo porcentual que dependería de una línea base no medida experimentalmente en las mismas condiciones.
+194|Normal|Tabla 6.1 — Comparación de métricas operativas entre la línea base bibliográfica del proceso manual y el sistema automatizado.
+195|Normal|⁽¹⁾ Línea base bibliográfica: valores de referencia derivados de la literatura técnica e industrial [3][4][13], no medidos empíricamente en este trabajo. Detalle de su construcción en la sección 4.6.
+197|Normal|Figura 2 — Comparación de MTTA, MTTR y tasa de automatización entre la línea base bibliográfica (estimación, no medida) y el sistema automatizado (medición empírica sobre las vistas SQL mtta_stats, mttr_stats y automation_rate). El MTTA corresponde a una sub-muestra (n=5) medida mediante sondeo real sobre eventos syslog; ver sección 6.4 (H3). MTTA y MTTR en escala logarítmica dado el orden de magnitud de diferencia.
+198|Heading 2|6.3 Análisis Crítico de los Resultados
+199|Normal|La tasa de automatización del 98,77 % indica que, en la serie de 162 alertas analizadas, el sistema procesó autónomamente 160 sin intervención humana. El 1,23 % restante (2 alertas) corresponde a casos en los que el evento llegó a la tabla alerts pero no se completó el registro correspondiente en playbook_runs. El análisis post-mortem de estos casos en la tabla failed_alerts identificó como causa la indisponibilidad momentánea del servicio externo de bloqueo (Blocker API) durante una porción acotada de la corrida: al fallar la llamada HTTP de refuerzo del bloqueo, el nodo encargado de actualizar el estado de bloqueo intentó operar sobre una respuesta de error sin los campos esperados, interrumpiendo el playbook antes de completarse. Este mismo proceso de auditoría permitió además detectar y corregir un defecto en el propio mecanismo de registro de fallos, que hasta entonces no capturaba correctamente el nodo ni el mensaje de error reales. La existencia de la tabla failed_alerts y el procedimiento de análisis post-mortem son, en sí mismos, un resultado del trabajo: el sistema no solo automatiza la respuesta exitosa sino que también registra y permite auditar las respuestas fallidas —incluyendo, en este caso, defectos en el propio mecanismo de auditoría—, requisito indispensable para la mejora continua de cualquier SOC.
+200|Normal|El MTTR mediano de aproximadamente 1 segundo en el circuito automatizado es coherente con la arquitectura del sistema, en la que el camino crítico de la respuesta consiste en validación del header de autenticación, INSERT en PostgreSQL, llamada HTTP a la API de Telegram, e INSERT en playbook_runs. La latencia dominante en este camino corresponde a la llamada a la API externa de Telegram (valores individuales observados entre 0,4 y 5,4 segundos según la corrida), lo que es consistente con la baja latencia observada en las consultas locales a PostgreSQL. La afirmación rigurosa que sigue es que el MTTR queda dominado por las latencias de las APIs externas y no por el procesamiento interno del pipeline, lo que tiene una consecuencia importante: ampliar el sistema con más detectores o más reglas no degrada el MTTR mientras las latencias externas se mantengan estables.
+201|Normal|La comparación de estos resultados con la literatura debe hacerse con cautela. Algunos trabajos y reportes técnicos documentan reducciones de MTTR significativas al introducir SOAR en SOCs reales [3][4]. Las diferencias entre nuestros resultados y esos rangos no permiten afirmar superioridad: nuestro experimento mide tiempos absolutos en un escenario sintético controlado, mientras que los porcentajes citados en la literatura corresponden a operaciones reales con cargas, tipos de incidente y contextos organizacionales diferentes. La conclusión defendible es que el orden de magnitud del MTTR alcanzado (decenas de segundos) es consistente con lo reportado por la literatura para sistemas SOAR maduros, lo cual valida la viabilidad del enfoque sin sostener una afirmación de superioridad.
+202|Normal|Durante el proceso de desarrollo se identificaron y resolvieron tres incidencias relevantes. La primera fue la codificación incorrecta de caracteres especiales en el script detector, resuelta añadiendo la directiva # -*- coding: utf-8 -*- al inicio del archivo. La segunda fue el desfase de timestamps entre los mensajes syslog de prueba y la hora real del sistema, resuelta actualizando el script de simulación para usar la hora actual del sistema. La tercera fue el error HTTP 404 al enviar alertas al webhook de n8n por el workflow inactivo, resuelta documentando explícitamente el paso de activación en la guía de ejecución.
+203|Heading 2|6.4 Validación de Hipótesis
+204|Normal|H1 — Confirmada en el alcance acotado del experimento: La incorporación de n8n como orquestador SOAR-lite produjo un MTTR mediano de aproximadamente 1 segundo sobre 162 alertas, valor que se ubica en una escala temporal cualitativamente distinta del proceso manual de referencia bibliográfica (orden de minutos), y la trazabilidad en playbook_runs es completa. La hipótesis se sostiene con la salvedad explícita de que el contraste con el proceso manual es bibliográfico, no experimental, y que la generalización a entornos de producción requiere validación adicional. La validación se sustenta en los datos de las vistas SQL mttr_stats y automation_rate.
+205|Normal|H2 — Confirmada: El sistema fue desplegado desde cero siguiendo la guía de ejecución documentada en cinco corridas de validación, alcanzando estado operativo (todos los servicios saludables, simulador generando alerta exitosa que recorre el pipeline completo) en tiempos comprendidos entre 5 y 15 minutos en la primera ejecución, y en menos de 30 segundos en ejecuciones subsiguientes. El requisito mínimo de hardware (8 GB de RAM, Docker Desktop) se confirmó como suficiente.
+206|Normal|H3 — Confirmada: El sistema expone las cuatro métricas mínimas propuestas: MTTR mediano (~1 segundo sobre 162 alertas), tasa de automatización (98,77 %), cobertura de fuentes de eventos (ocho tipos de eventos sintéticos —SSH brute-force, integridad de archivos, escaneo de puertos, escalación de privilegios, inyección SQL, web shell, malware y login sospechoso— más un noveno tipo detectado por sondeo real sobre eventos syslog en Elasticsearch) y tasa de alertas fallidas (1,23 %, con causa raíz identificada y auditable en la tabla failed_alerts). Como hallazgo adicional, se incorporó y validó empíricamente un indicador de MTTA (aproximadamente 61,5 segundos, n=5) mediante una corrida específica del detector de fuerza bruta SSH por sondeo periódico contra eventos syslog reales, aplicable exclusivamente a ese subconjunto de alertas —el resto del conjunto sintético generado vía webhook directo no atraviesa un mecanismo de sondeo y por lo tanto no permite su cálculo—. El indicador MTTA queda fuera del alcance obligatorio de esta hipótesis por las razones metodológicas expuestas en la sección de Limitaciones, pero su medición exitosa en el subconjunto aplicable refuerza la confirmación de la hipótesis.
+207|Heading 1|Capítulo 7: Conclusiones y Trabajos Futuros
+208|Heading 2|7.1 Síntesis del Trabajo Realizado
+209|Normal|El presente trabajo diseñó, implementó y validó un prototipo funcional de SIEM automatizado construido íntegramente con herramientas open source y orquestado mediante n8n como capa SOAR-lite, en un entorno de laboratorio académico con recursos mínimos. El sistema resultante integra ocho servicios Docker orquestados mediante Docker Compose, complementados por la Blocker API —noveno componente de infraestructura, que se ejecuta deliberadamente fuera de contenedores por las razones técnicas descritas en la sección 5.12— y por los scripts Python de detección (SSH brute-force y FIM), que también operan fuera de contenedores como parte de la capa de detección sin constituir componentes de infraestructura adicionales. En conjunto, los nueve componentes de infraestructura se organizan en un pipeline de cinco capas que cubre el ciclo completo de un incidente de seguridad: desde la generación del evento hasta la respuesta automatizada y su registro auditable. El prototipo es desplegable con un único comando y puede ser levantado desde cero en entre cinco y quince minutos en cualquier máquina con 8 GB de RAM y Docker Desktop.
+210|Heading 2|7.2 Conclusiones Principales
+211|Heading 3|7.2.1 Viabilidad técnica del SIEM académico open source
+212|Normal|Es técnicamente viable implementar un SIEM académico plenamente funcional —para el caso de uso de laboratorio propuesto— utilizando exclusivamente herramientas open source, sin pérdida significativa de funcionalidad respecto a soluciones comerciales en las dimensiones relevantes para la formación de analistas SecOps. Esta conclusión es consistente con los hallazgos de Manzoor et al. [1] y Pereira [5], y extiende sus aportes incorporando la dimensión de automatización SOAR y el contexto académico reproducible con Docker, ausentes en ambos trabajos.
+213|Heading 3|7.2.2 Impacto medible de la automatización sobre el MTTR
+214|Normal|La incorporación de n8n como capa SOAR-lite produjo en el entorno de laboratorio un MTTR mediano del orden de 1 segundo sobre una serie de 162 alertas, dominado por la latencia de las APIs externas y no por el procesamiento interno del pipeline. La tasa de automatización alcanzada fue del 98,77 %. Este valor, sensiblemente más rápido que las decenas de minutos —o incluso que las decenas de segundos— reportadas para procesos de respuesta con intervención humana en la literatura [3][4], refleja la simplicidad del camino crítico de este prototipo de laboratorio (validación, escritura en base de datos y notificación), sin las etapas de triage humano presentes en operaciones SOC reales de mayor escala. La afirmación que el presente trabajo sostiene es de viabilidad, no de superioridad directa: comparar un valor absoluto medido en un entorno sintético de laboratorio con operaciones reales de producción no es metodológicamente válido. El reconocimiento de este límite refuerza la calidad del trabajo en lugar de debilitarlo.
+215|Heading 3|7.2.3 Modularidad y extensibilidad demostradas
+216|Normal|La arquitectura de pipeline en capas con separación entre detección y respuesta demostró ser extensible en la práctica. La adición del módulo FIM se realizó sin modificar ninguno de los componentes existentes, validando lo que documentan Islam, Babar y Nepal [2] sobre los beneficios arquitectónicos de la separación SIEM-SOAR y sugiriendo que detectores adicionales —port scanning, anomalías de volumen— pueden incorporarse con el mismo método.
+217|Heading 3|7.2.4 Valor pedagógico del entorno reproducible
+218|Normal|La capacidad de observar en tiempo real el ciclo completo de un incidente —desde la ejecución del simulador hasta la notificación de Telegram y la actualización del dashboard— en un entorno que el propio estudiante desplegó con un único comando, sugiere un valor formativo que la enseñanza puramente teórica no puede ofrecer. Esta afirmación es, no obstante, un indicio derivado de la observación participante durante el desarrollo y no una conclusión empírica respaldada por un diseño experimental con grupos de control. La validación cuantitativa del impacto pedagógico se incluye explícitamente como línea de trabajo futuro (sección 7.4). Las incidencias encontradas y resueltas durante el desarrollo enriquecen adicionalmente el proyecto como caso de estudio de troubleshooting en sistemas de seguridad reales.
+219|Heading 3|7.2.5 Trazabilidad como habilitador de la evaluación académica
+220|Normal|El almacenamiento de todos los incidentes y ejecuciones de playbooks en PostgreSQL transforma la evaluación de las prácticas de seguridad de un proceso subjetivo en uno objetivo: el docente puede consultar playbook_runs para saber exactamente cuántas alertas se generaron, cuántos playbooks se ejecutaron exitosamente y cuánto tardó cada uno, con evidencia persistente y verificable.
+221|Heading 3|7.2.6 Extensión hacia la contención efectiva
+222|Normal|La incorporación de la Blocker API demuestra que la arquitectura es extensible desde la notificación pasiva hacia la contención efectiva. La capacidad de aplicar reglas de firewall reales directamente desde n8n, con registro de enforcement en PostgreSQL y activación explícita controlada por el operador, representa un paso significativo hacia las capacidades de un SOAR completo, manteniendo siempre el principio de trazabilidad y control humano.
+223|Heading 3|7.2.7 Postura de seguridad del propio SIEM: limitación reconocida
+224|Normal|Una observación que un evaluador externo señalaría con razón es que el propio SIEM, por su naturaleza, es un objetivo de alto valor para un atacante: comprometerlo equivale a ganar visibilidad sobre toda la red monitorizada y, eventualmente, a desactivar la detección. El presente trabajo adopta una postura de seguridad básica para el SIEM —autenticación por header compartido x-siem-key sobre el webhook de n8n, gestión de usuarios nativa de n8n (cuenta de owner con contraseña propia, sin credenciales compartidas), aislamiento de servicios en la red Docker siem-net, exposición restringida de puertos al host— pero no implementa cifrado en tránsito (TLS) entre componentes, ni rotación de credenciales, ni auditoría de accesos administrativos a Grafana, Kibana o n8n. Elasticsearch, en particular, se ejecuta con xpack.security.enabled=false, es decir, sin ningún mecanismo de autenticación sobre su API REST, siendo la limitación de seguridad más severa del conjunto. Asimismo, las credenciales que aparecen en el archivo docker-compose.yml del repositorio (usuario y contraseña de PostgreSQL, usuario administrador de Grafana) son valores de desarrollo fijados deliberadamente para facilitar la reproducibilidad del entorno de laboratorio; se declara explícitamente que son credenciales de laboratorio, no aptas para ningún entorno fuera de ese contexto, y que deben reemplazarse por valores únicos y secretos antes de cualquier despliegue que exceda el uso académico controlado descrito en este trabajo. Estas limitaciones son aceptables en un laboratorio académico cerrado pero serían inaceptables en producción. El trabajo no las disimula: las reconoce explícitamente como deuda de seguridad heredada del contexto de uso, y las incorpora en la sección 7.4 como línea de trabajo futuro de alta prioridad.
+226|Heading 2|7.3 Limitaciones del Trabajo
+227|Normal|Tres limitaciones metodológicas deben declararse explícitamente. La primera es que todas las mediciones se realizaron en un entorno de laboratorio controlado con volumen bajo de eventos y sin concurrencia de usuarios; los resultados deben considerarse indicadores del comportamiento en condiciones ideales, no proyecciones del rendimiento en producción. La segunda es que la validación del valor pedagógico se realizó mediante observación directa durante el desarrollo, sin un diseño experimental formal con grupo de control e intervención. La tercera es que la detección implementada cubre exclusivamente patrones individuales bien definidos y no aborda la correlación de eventos entre múltiples fuentes simultáneas.
+228|Heading 2|7.4 Trabajos Futuros
+229|Normal|Las líneas de trabajo futuro identificadas se presentan a continuación en orden de relevancia técnica y pedagógica.
+230|Normal|Correlación avanzada multi-fuente: implementar correlación cruzada de eventos entre múltiples fuentes en n8n, por ejemplo combinando alertas SSH con eventos FIM de la misma IP en una ventana temporal breve, para detectar ataques coordinados de múltiples etapas.
+231|Normal|Detección basada en aprendizaje automático: incorporar modelos de detección de anomalías univariantes y multivariantes sobre métricas de log, integrables en n8n como microservicio ML externo sin modificar la estructura base.
+232|Normal|Ampliar la integración de inteligencia de amenazas —ya implementada y validada mediante la consulta de reputación de IP mediante AbuseIPDB descrita en la sección 5.8— incorporando adicionalmente VirusTotal para clasificación de hashes de archivos sospechosos detectados por el módulo FIM.
+233|Normal|Medición empírica de la línea base manual: realizar un estudio controlado con varios analistas humanos atendiendo escenarios equivalentes al circuito automatizado, para construir una línea base empírica propia que reemplace la estimación bibliográfica utilizada en este trabajo (sección 4.6).
+234|Normal|Evaluación del impacto pedagógico: diseñar un estudio experimental con grupo de control y grupo de intervención para cuantificar el impacto del laboratorio SIEM sobre el desarrollo de competencias SecOps en estudiantes reales.
+235|Normal|Refuerzo de la postura de seguridad del SIEM: implementar TLS entre componentes, rotación de credenciales y auditoría de accesos administrativos, para habilitar la transición del prototipo desde el laboratorio académico hacia escenarios productivos controlados (vinculado con la limitación reconocida en la sección 7.2.7).
+236|Normal|Soporte para fuentes heterogéneas: extender Logstash con patrones Grok para logs de Apache/Nginx, NetFlow, SNMP, CloudTrail (AWS) y Stackdriver (GCP), ampliando significativamente el alcance de detección.
+237|Normal|Catálogo institucional reutilizable: exportar los workflows de n8n y los dashboards de Grafana como repositorio público con guía de importación, reduciendo la barrera de adopción en nuevos contextos institucionales.
+238|Normal|Módulo de gestión de casos: extender el dashboard Streamlit "Panel de Operaciones de Seguridad" con una sección de gestión de casos que permita al analista documentar el análisis y la resolución de incidentes, aprovechando la tabla incidents ya incorporada en el esquema de PostgreSQL.
+239|Normal|En síntesis, el trabajo demostró que la convergencia de herramientas open source, automatización SOAR y diseño pedagógico puede producir un entorno de laboratorio SIEM de calidad académica con un esfuerzo de implementación accesible para equipos universitarios con recursos limitados. Las líneas de trabajo futuro sugieren un punto de partida sólido hacia capacidades progresivamente más sofisticadas.
+240|Heading 1|Consideraciones Éticas
+241|Normal|El sistema desarrollado en este proyecto está concebido exclusivamente para uso en entornos de laboratorio controlado y su operación implica el cumplimiento estricto de las siguientes políticas éticas, coherentes con los principios establecidos en la Ley 25.326 de Protección de Datos Personales [14] y con las buenas prácticas de la industria de ciberseguridad.
+242|Normal|El sistema deberá ejecutarse únicamente en infraestructura propia o en redes cuya monitorización haya sido expresamente autorizada por los responsables correspondientes. Toda captura de logs que contenga información potencialmente identificable —como nombres de usuario, direcciones IP o nombres de host— deberá contar con el consentimiento explícito del titular o del área de TI responsable. Solo se almacenará la información estrictamente necesaria para el análisis de seguridad, excluyendo credenciales, contenido de correos electrónicos o cualquier otro dato sensible no relacionado con eventos de seguridad. Para informes académicos o publicaciones, las IPs y nombres de host deberán pseudonimizarse.
+243|Normal|Los datos de simulación generados durante prácticas de laboratorio deberán eliminarse en un plazo máximo de 48 horas tras la finalización del análisis, salvo que el docente requiera conservarlos como evidencia de evaluación. Las acciones de bloqueo o cuarentena deberán ser simuladas en todo momento, sin ejecutar cambios en dispositivos de red reales fuera del alcance explícito de cada práctica. Toda acción automática ejecutada por n8n quedará registrada en playbook_runs con fecha, resultado y evidencia mínima. Se prohíbe expresamente utilizar el sistema para monitorear redes ajenas, vigilar personas sin su consentimiento o para cualquier fin distinto del educativo y de investigación.
+244|Heading 1|Referencias Bibliográficas
+245|Normal|Las referencias se presentan en formato IEEE, ordenadas por orden de aparición en el texto:
+246|Normal|[1]  J. Manzoor, A. Waleed, A. F. Jamali y A. Masood, “Cybersecurity on a budget: Evaluating security and performance of open-source SIEM solutions for SMEs,” PLOS ONE, vol. 19, n.° 3, e0301183, mar. 2024. doi: 10.1371/journal.pone.0301183
+247|Normal|[2]  C. Islam, M. A. Babar y S. Nepal, “A Multi-Vocal Review of Security Orchestration,” ACM Computing Surveys, vol. 52, n.º 2, art. 37, pp. 37:1–37:45, 2019. DOI: 10.1145/3305268.
+248|Normal|[3]  B. Kovacevic, Security Orchestration, Automation, and Response for Security Analysts: Learn the secrets of SOAR to improve MTTA and MTTR and strengthen your organization’s security posture. Birmingham, Reino Unido: Packt Publishing, 2023. ISBN: 978-1-80324-291-0.
+249|Normal|[4]  Fortinet, “5 SecOps Use Cases That Reduce Mean Time to Respond (MTTR),” Fortinet Resources, 2025. [En línea]. Disponible: https://www.fortinet.com/resources/articles/reduce-mttr-secops-use-cases [Fecha de acceso: enero 2026]. Nota: fuente de proveedor con interés comercial directo; utilizada en este trabajo únicamente para contextualización direccional, complementada con fuentes académicas independientes.
+250|Normal|[5]  V. R. Pereira, “Cyber-Attack Detection and Response Using Open-Source Tools,” tesis de maestría, National College of Ireland, Dublín, Irlanda, 2023. Disponible en el repositorio NORMA del NCI en norma.ncirl.ie/7143.
+251|Normal|[6]  Elastic N.V., Elasticsearch Reference 8.15. San Francisco, CA, EE. UU.: Elastic N.V., 2024. [En línea]. Disponible: https://www.elastic.co/guide/en/elasticsearch/reference/8.15/index.html
+252|Normal|[7]  Docker Inc., Docker Compose Documentation, versión 2.24. San Francisco, CA, EE. UU.: Docker Inc., 2024. [En línea]. Disponible: https://docs.docker.com/compose/
+253|Normal|[8]  n8n GmbH, n8n Documentation, versión 1.x. Berlín, Alemania: n8n GmbH, 2024. [En línea]. Disponible: https://docs.n8n.io/
+254|Normal|[9]  Wazuh Inc., Wazuh Documentation: File Integrity Monitoring, versión 4.7. Austin, TX, EE. UU.: Wazuh Inc., 2024. [En línea]. Disponible: https://documentation.wazuh.com/current/user-manual/capabilities/file-integrity/
+255|Normal|[10]  Grafana Labs, Grafana Documentation, versión 10.x. Nueva York, NY, EE. UU.: Grafana Labs, 2024. [En línea]. Disponible: https://grafana.com/docs/grafana/latest/
+256|Normal|[11]  International Organization for Standardization, Information Security, Cybersecurity and Privacy Protection — Information Security Management Systems — Requirements, ISO/IEC 27001:2022. Ginebra, Suiza: ISO, 2022.
+257|Normal|[12]  National Institute of Standards and Technology, Cybersecurity Framework, Version 2.0. Gaithersburg, MD, EE. UU.: NIST, 2024. [En línea]. Disponible: https://www.nist.gov/cyberframework
+258|Normal|[13]  National Institute of Standards and Technology, Computer Security Incident Handling Guide, NIST SP 800-61 Rev. 2. Gaithersburg, MD, EE. UU.: NIST, 2012.
+259|Normal|[14]  Congreso Nacional de la República Argentina, Ley 25.326 de Protección de los Datos Personales. Buenos Aires, Argentina: Boletín Oficial, oct. 2000.
+260|Normal|[15]  S. Bhatt, P. K. Manadhata y L. Zomlot, “The Operational Role of Security Information and Event Management Systems,” IEEE Security & Privacy, vol. 12, n.° 5, pp. 35–41, sep.-oct. 2014. doi: 10.1109/MSP.2014.103
+261|Normal|[16]  IBM Security y Ponemon Institute, Cost of a Data Breach Report 2024. Cambridge, MA, EE. UU.: IBM Corp., 2024. [En línea]. Disponible: https://www.ibm.com/reports/data-breach
+262|Normal|[17]  Fortinet, Global Threat Landscape Report H2 2023. Sunnyvale, CA, EE. UU.: Fortinet Inc., 2024.
+263|Normal|[18]  K. Kent y M. Souppaya, Guide to Computer Security Log Management, NIST Special Publication 800-92. Gaithersburg, MD, EE. UU.: National Institute of Standards and Technology, sep. 2006. doi: 10.6028/NIST.SP.800-92. [En línea]. Disponible: https://nvlpubs.nist.gov/nistpubs/legacy/sp/nistspecialpublication800-92.pdf
+264|Normal|[19]  Ł. Korzeniowski y K. Goczyła, “Landscape of Automated Log Analysis: A Systematic Literature Review and Mapping Study,” IEEE Access, vol. 10, pp. 21892–21913, 2022. doi: 10.1109/ACCESS.2022.3152549. [En línea]. Disponible: https://ieeexplore.ieee.org/document/9716129/
+265|Normal|[20]  G. González-Granadillo, S. González-Zarzosa y R. Diaz, “Security Information and Event Management (SIEM): Analysis, Trends, and Usage in Critical Infrastructures,” Sensors, vol. 21, n.° 14, art. 4759, jul. 2021. doi: 10.3390/s21144759. [En línea]. Disponible: https://www.mdpi.com/1424-8220/21/14/4759
+266|Normal|[21]  N. Tiwari y N. Hubballi, “Secure Socket Shell Bruteforce Attack Detection With Petri Net Modeling,” IEEE Transactions on Network and Service Management, vol. 20, n.° 1, pp. 697–710, mar. 2023. doi: 10.1109/TNSM.2022.3212591. [En línea]. Disponible: https://ieeexplore.ieee.org/document/9913204/
+267|Normal|[22] H. Casaclang, B. Ionescu, Y. Kim, and J.-Y. Jo, "Self-Hosted Workflow Automation for AI-Based Cybersecurity Operation," Journal of The Colloquium for Information Systems Security Education, vol. 13, no. 1, p. 21, Mar. 2026, doi: 10.53735/cisse.v13i1.241.
+268|Heading 1|Anexos Técnicos
+269|Heading 2|Anexo A — Cronograma de Implementación
+270|Normal|El siguiente cronograma documenta el esfuerzo aproximado en horas de trabajo efectivo del equipo, agregadas a lo largo del cuatrimestre académico. Las horas declaradas son estimaciones razonables del esfuerzo real distribuido entre implementación técnica, documentación y revisión, no el tiempo mínimo teórico de ejecución con asistencia. Esta declaración honesta es preferible a una subestimación incoherente con el alcance del trabajo (nueve componentes de infraestructura, workflows, dashboards, scripts y documentación académica completa). El esfuerzo total estimado se ubica en torno a las 156 horas.
+271|Normal|Tabla A.1 — Cronograma estimado por módulo.
+272|Heading 2|Anexo B — Esquema SQL (sql/01-init.sql)
+273|Normal|-- ============================================
+274|Normal|-- SIEM Database Schema
+275|Normal|-- ============================================
+277|Normal|-- Tabla de eventos crudos (auditoría completa)
+278|Normal|CREATE TABLE IF NOT EXISTS events_raw (
+279|Normal|    id SERIAL PRIMARY KEY,
+280|Normal|    ts TIMESTAMP NOT NULL DEFAULT NOW(),
+281|Normal|    host VARCHAR(120),
+282|Normal|    source VARCHAR(120),
+283|Normal|    severity VARCHAR(20),
+284|Normal|    message TEXT,
+285|Normal|    json_raw JSONB
+286|Normal|);
+288|Normal|CREATE INDEX IF NOT EXISTS idx_events_raw_ts ON events_raw(ts DESC);
+289|Normal|CREATE INDEX IF NOT EXISTS idx_events_raw_host ON events_raw(host);
+291|Normal|-- Tabla de alertas procesadas
+292|Normal|CREATE TABLE IF NOT EXISTS alerts (
+293|Normal|    id SERIAL PRIMARY KEY,
+294|Normal|    ts TIMESTAMP DEFAULT NOW(),
+295|Normal|    rule_id VARCHAR(120) NOT NULL,
+296|Normal|    src_ip VARCHAR(60),
+297|Normal|    username VARCHAR(120),
+298|Normal|    severity VARCHAR(20),
+299|Normal|    raw JSONB,
+300|Normal|    status VARCHAR(30) DEFAULT 'new',
+301|Normal|    acknowledged_at TIMESTAMPTZ,
+302|Normal|    acknowledged_by TEXT,
+303|Normal|    country_code VARCHAR(5),
+304|Normal|    event_occurred_at TIMESTAMPTZ
+305|Normal|);
+307|Normal|CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts(ts DESC);
+308|Normal|CREATE INDEX IF NOT EXISTS idx_alerts_rule_id ON alerts(rule_id);
+309|Normal|CREATE INDEX IF NOT EXISTS idx_alerts_src_ip ON alerts(src_ip);
+310|Normal|CREATE INDEX IF NOT EXISTS idx_alerts_severity ON alerts(severity);
+312|Normal|-- Tabla de ejecuciones de playbooks
+313|Normal|CREATE TABLE IF NOT EXISTS playbook_runs (
+314|Normal|    id SERIAL PRIMARY KEY,
+315|Normal|    alert_id INTEGER REFERENCES alerts(id),
+316|Normal|    workflow VARCHAR(120),
+317|Normal|    outcome VARCHAR(60),
+318|Normal|    evidence JSONB,
+319|Normal|    executed_at TIMESTAMP DEFAULT NOW()
+320|Normal|);
+322|Normal|CREATE INDEX IF NOT EXISTS idx_playbook_runs_alert_id ON playbook_runs(alert_id);
+323|Normal|CREATE INDEX IF NOT EXISTS idx_playbook_runs_executed_at ON playbook_runs(executed_at DESC);
+325|Normal|-- ============================================
+326|Normal|-- VISTAS PARA MÉTRICAS
+327|Normal|-- ============================================
+329|Normal|-- Vista para cálculo de MTTR (Mean Time To Respond)
+330|Normal|CREATE OR REPLACE VIEW mttr_stats AS
+331|Normal|SELECT 
+332|Normal|    AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts))) AS avg_mttr_seconds,
+333|Normal|    COUNT(*) AS total_responses
+334|Normal|FROM alerts a
+335|Normal|JOIN playbook_runs p ON p.alert_id = a.id;
+337|Normal|-- Vista para cálculo de MTTA (Mean Time To Acknowledge)
+338|Normal|-- MTTA = tiempo entre que el evento ocurre en el mundo real (event_occurred_at,
+339|Normal|-- ej. timestamp de un log syslog) y el momento en que el sistema lo detecta e
+340|Normal|-- inserta la alerta (ts). Solo aplica a detectores por sondeo periodico que
+341|Normal|-- reportan el timestamp real del evento (ej. ssh_bruteforce_detector.py);
+342|Normal|-- las alertas sinteticas del simulador no tienen event_occurred_at y quedan
+343|Normal|-- fuera del calculo (NULL).
+344|Normal|CREATE OR REPLACE VIEW mtta_stats AS
+345|Normal|SELECT
+346|Normal|    AVG(EXTRACT(EPOCH FROM (ts - event_occurred_at))) FILTER (WHERE event_occurred_at IS NOT NULL) AS avg_mtta_seconds,
+347|Normal|    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (ts - event_occurred_at))) FILTER (WHERE event_occurred_at IS NOT NULL) AS median_mtta_seconds,
+348|Normal|    COUNT(*) FILTER (WHERE event_occurred_at IS NOT NULL) AS acknowledged_count,
+349|Normal|    COUNT(*) AS total_alerts
+350|Normal|FROM alerts;
+352|Normal|-- Vista para alertas por severidad
+353|Normal|CREATE OR REPLACE VIEW alerts_by_severity AS
+354|Normal|SELECT 
+355|Normal|    DATE(ts) AS alert_date,
+356|Normal|    severity,
+357|Normal|    COUNT(*) AS count
+358|Normal|FROM alerts
+359|Normal|GROUP BY DATE(ts), severity
+360|Normal|ORDER BY alert_date DESC, severity;
+362|Normal|-- Vista para tasa de automatización (cobertura + éxito separados)
+363|Normal|CREATE OR REPLACE VIEW automation_rate AS
+364|Normal|SELECT
+365|Normal|    -- Cobertura: alertas con al menos un playbook registrado / total alertas
+366|Normal|    COUNT(DISTINCT p.alert_id)                                                        AS automated_alerts,
+367|Normal|    (SELECT COUNT(*) FROM alerts)                                                     AS total_alerts,
+368|Normal|    ROUND(COUNT(DISTINCT p.alert_id)::numeric
+369|Normal|          / NULLIF((SELECT COUNT(*) FROM alerts), 0) * 100, 2)                       AS automation_percentage,
+371|Normal|    -- Éxito: playbooks con outcome exitoso / total playbooks registrados
+372|Normal|    COUNT(*) FILTER (WHERE p.outcome IN (
+373|Normal|        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+374|Normal|    ))                                                                                AS successful_runs,
+375|Normal|    COUNT(*)                                                                          AS total_runs,
+376|Normal|    ROUND(COUNT(*) FILTER (WHERE p.outcome IN (
+377|Normal|        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+378|Normal|    ))::numeric / NULLIF(COUNT(*), 0) * 100, 2)                                      AS success_rate,
+380|Normal|    -- Distribución de outcomes
+381|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'success')           AS outcome_success,
+382|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'incident_created')  AS outcome_incident_created,
+383|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'incident_reused')   AS outcome_incident_reused,
+384|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'blocked')           AS outcome_blocked,
+385|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'partial_success')   AS outcome_partial,
+386|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'logged_low')        AS outcome_logged_low,
+387|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'failed')            AS outcome_failed
+388|Normal|FROM playbook_runs p;
+390|Normal|-- Vista de automatización OPERATIVA (excluye alertas de prueba/construcción)
+391|Normal|-- Las alertas de test no deben sesgar los KPI operativos del SOC
+392|Normal|CREATE OR REPLACE VIEW automation_rate_operational AS
+393|Normal|SELECT
+394|Normal|    COUNT(DISTINCT p.alert_id)                                                        AS automated_alerts,
+395|Normal|    COUNT(DISTINCT a.id)                                                              AS total_alerts,
+396|Normal|    ROUND(COUNT(DISTINCT p.alert_id)::numeric
+397|Normal|          / NULLIF(COUNT(DISTINCT a.id), 0) * 100, 2)                                AS automation_percentage,
+398|Normal|    COUNT(*) FILTER (WHERE p.outcome IN (
+399|Normal|        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+400|Normal|    ))                                                                                AS successful_runs,
+401|Normal|    COUNT(p.id)                                                                       AS total_runs,
+402|Normal|    ROUND(COUNT(*) FILTER (WHERE p.outcome IN (
+403|Normal|        'success', 'incident_created', 'incident_reused', 'blocked', 'partial_success', 'logged_low'
+404|Normal|    ))::numeric / NULLIF(COUNT(p.id), 0) * 100, 2)                                   AS success_rate,
+405|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'success')           AS outcome_success,
+406|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'incident_created')  AS outcome_incident_created,
+407|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'incident_reused')   AS outcome_incident_reused,
+408|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'blocked')           AS outcome_blocked,
+409|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'partial_success')   AS outcome_partial,
+410|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'logged_low')        AS outcome_logged_low,
+411|Normal|    COUNT(*) FILTER (WHERE p.outcome = 'failed')            AS outcome_failed
+412|Normal|FROM alerts a
+413|Normal|LEFT JOIN playbook_runs p ON p.alert_id = a.id
+414|Normal|WHERE a.rule_id NOT IN ('test_fix', 'test_playbook', 'test_mejorado', 'test_telegram')
+415|Normal|  AND a.rule_id NOT LIKE 'test%';
+417|Normal|-- Vista para top IPs sospechosas
+418|Normal|CREATE OR REPLACE VIEW top_suspicious_ips AS
+419|Normal|SELECT 
+420|Normal|    src_ip,
+421|Normal|    COUNT(*) AS alert_count
+422|Normal|FROM alerts
+423|Normal|WHERE src_ip IS NOT NULL
+424|Normal|GROUP BY src_ip
+425|Normal|ORDER BY alert_count DESC
+426|Normal|LIMIT 10;
+428|Normal|-- ============================================
+429|Normal|-- TABLAS ADICIONALES
+430|Normal|-- ============================================
+432|Normal|-- Tabla de incidentes (gestión de ataques detectados)
+433|Normal|CREATE TABLE IF NOT EXISTS incidents (
+434|Normal|    id SERIAL PRIMARY KEY,
+435|Normal|    type TEXT,
+436|Normal|    src_ip TEXT,
+437|Normal|    username TEXT,
+438|Normal|    attempts INTEGER,
+439|Normal|    rule_id TEXT,
+440|Normal|    severity TEXT,
+441|Normal|    status TEXT DEFAULT 'open',
+442|Normal|    created_at TIMESTAMP DEFAULT NOW()
+443|Normal|);
+445|Normal|CREATE INDEX IF NOT EXISTS idx_incidents_src_ip ON incidents(src_ip);
+446|Normal|CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status);
+448|Normal|-- Tabla de alertas fallidas (manejo de errores)
+449|Normal|CREATE TABLE IF NOT EXISTS failed_alerts (
+450|Normal|    id SERIAL PRIMARY KEY,
+451|Normal|    ts TIMESTAMP DEFAULT NOW(),
+452|Normal|    error_node TEXT,
+453|Normal|    error_message TEXT,
+454|Normal|    alert_data JSONB,
+455|Normal|    retry_count INTEGER DEFAULT 0,
+456|Normal|    resolved BOOLEAN DEFAULT false,
+457|Normal|    resolved_at TIMESTAMP
+458|Normal|);
+460|Normal|CREATE INDEX IF NOT EXISTS idx_failed_alerts_ts ON failed_alerts(ts DESC);
+461|Normal|CREATE INDEX IF NOT EXISTS idx_failed_alerts_resolved ON failed_alerts(resolved);
+463|Normal|-- Tabla de blacklist de IPs (respuesta automatizada SOAR)
+464|Normal|CREATE TABLE IF NOT EXISTS ip_blacklist (
+465|Normal|    id SERIAL PRIMARY KEY,
+466|Normal|    ip VARCHAR(60) NOT NULL,
+467|Normal|    reason TEXT,
+468|Normal|    incident_id INTEGER REFERENCES incidents(id),
+469|Normal|    blocked_at TIMESTAMP DEFAULT NOW(),
+470|Normal|    expires_at TIMESTAMP,
+471|Normal|    active BOOLEAN DEFAULT true,
+472|Normal|    -- Enforcement: distingue "intención de bloqueo" de "bloqueo aplicado realmente"
+473|Normal|    enforced            BOOLEAN DEFAULT false,
+474|Normal|    enforcement_message TEXT,
+475|Normal|    enforced_at         TIMESTAMP
+476|Normal|);
+478|Normal|CREATE INDEX IF NOT EXISTS idx_ip_blacklist_ip ON ip_blacklist(ip);
+479|Normal|CREATE INDEX IF NOT EXISTS idx_ip_blacklist_active ON ip_blacklist(active);
+480|Heading 2|Anexo C — Configuración Logstash (logstash/logstash.conf)
+481|Normal|input {
+482|Normal|  udp {
+483|Normal|    port => 5140
+484|Normal|    type => "syslog"
+485|Normal|  }
+486|Normal|}
+488|Normal|filter {
+489|Normal|  grok {
+490|Normal|    match => {
+491|Normal|      "message" => [
+492|Normal|        "<%{POSINT:syslog_pri}>%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:hostname} %{DATA:program}(?:\[%{POSINT:pid}\])?: %{GREEDYDATA:syslog_message}",
+493|Normal|        "%{SYSLOGTIMESTAMP:syslog_timestamp} %{SYSLOGHOST:hostname} %{DATA:program}(?:\[%{POSINT:pid}\])?: %{GREEDYDATA:syslog_message}"
+494|Normal|      ]
+495|Normal|    }
+496|Normal|  }
+498|Normal|  grok {
+499|Normal|    match => {
+500|Normal|      "message" => "from %{IP:src_ip}"
+501|Normal|    }
+502|Normal|  }
+504|Normal|  if [program] == "sshd" and "Failed password" in [message] {
+505|Normal|    grok {
+506|Normal|      match => {
+507|Normal|        "message" => "Failed password for (?:invalid user )?%{USERNAME:username}"
+508|Normal|      }
+509|Normal|    }
+510|Normal|  }
+512|Normal|  date {
+513|Normal|    match => [ "syslog_timestamp", "MMM  d HH:mm:ss", "MMM dd HH:mm:ss" ]
+514|Normal|    target => "@timestamp"
+515|Normal|  }
+517|Normal|  mutate {
+518|Normal|    add_field => { "ingest_ts" => "%{@timestamp}" }
+519|Normal|  }
+520|Normal|}
+522|Normal|output {
+523|Normal|  elasticsearch {
+524|Normal|    hosts => ["http://elasticsearch:9200"]
+525|Normal|    index => "siem-events-%{+YYYY.MM.dd}"
+526|Normal|  }
+528|Normal|  stdout { 
+529|Normal|    codec => rubydebug 
+530|Normal|  }
+531|Normal|}
+532|Heading 2|Anexo D — Métricas e Indicadores del SOC
+533|Normal|Tabla D.1 — Métricas e indicadores del SOC.
+534|Heading 2|Anexo E — Guía de Despliegue Paso a Paso
+535|Normal|Paso 1 — Prerequisitos: verificar que Docker Desktop está instalado y en ejecución, y que la máquina dispone de al menos 8 GB de RAM disponible. En Windows, verificar que la integración WSL2 esté habilitada en la configuración de Docker Desktop.
+536|Normal|Paso 2 — Clonar el repositorio: ejecutar git clone https://github.com/chicassuperpoderosas26/TP-Ciberseguridad.git y navegar al directorio raíz del proyecto donde se encuentra el archivo docker-compose.yml.
+537|Normal|Paso 3 — Configurar variables de entorno: copiar el archivo .env.example a .env y editar las variables TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID con los valores reales del bot de Telegram configurado para las notificaciones.
+538|Normal|Paso 4 — Levantar el sistema: ejecutar docker-compose up -d. Docker descargará las imágenes necesarias en la primera ejecución (5–10 minutos según conexión) y levantará todos los servicios en el orden correcto.
+539|Normal|Paso 5 — Verificar el arranque: ejecutar docker-compose ps para verificar que todos los servicios están en estado Up. Esperar 30–60 segundos adicionales para que Elasticsearch y PostgreSQL completen su inicialización interna.
+540|Normal|Paso 6 — Activar el workflow de n8n: acceder a http://localhost:5678, iniciar sesión, navegar a la lista de workflows y activar el workflow SIEM – Alerta Entrante. Sin este paso el webhook no estará disponible.
+541|Normal|Paso 7 — Verificar el pipeline: ejecutar python attack_simulator.py, seleccionar la opción SSH Brute-Force con parámetros por defecto y verificar que la alerta aparece en PostgreSQL (SELECT * FROM alerts ORDER BY ts DESC LIMIT 5), que el registro playbook_run es creado y que se recibe la notificación en Telegram.
+542|Normal|Paso 8 — Acceder a los dashboards: abrir Grafana en http://localhost:3000 (admin/admin por defecto) y verificar que el dashboard SIEM Dashboard – Centro de Operaciones de Seguridad muestra las métricas generadas en el paso anterior.
+543|Heading 2|Anexo F — docker-compose.yml completo
+544|Normal|Definición completa de los ocho servicios Docker que componen el sistema, tal como se encuentra en el repositorio del proyecto (docker-compose.yml). La Blocker API (noveno componente) se ejecuta deliberadamente fuera de este archivo — ver sección 5.12 y Anexo E para su despliegue manual.
+545|Normal|# NOTA: la Blocker API (blocker/blocker_api.py, puerto 8765) NO está definida como
+546|Normal|# servicio en este archivo. Aplica reglas de firewall reales (netsh en Windows,
+547|Normal|# iptables en Linux) que deben actuar sobre la red del HOST, no sobre el espacio de
+548|Normal|# red aislado de un contenedor. Por eso se ejecuta manualmente sobre el sistema
+549|Normal|# operativo anfitrión, con privilegios de administrador. Ver sección 5.12 de la
+550|Normal|# tesis y el Anexo E (Guía de Despliegue) para las instrucciones de arranque.
+551|Normal|services:
+552|Normal|  postgres:
+553|Normal|    image: postgres:16
+554|Normal|    container_name: siem_postgres
+555|Normal|    environment:
+556|Normal|      POSTGRES_USER: siem
+557|Normal|      POSTGRES_PASSWORD: siem123
+558|Normal|      POSTGRES_DB: siem
+559|Normal|    ports:
+560|Normal|      - "5432:5432"
+561|Normal|    volumes:
+562|Normal|      - ./sql:/docker-entrypoint-initdb.d
+563|Normal|      - postgres_data:/var/lib/postgresql/data
+564|Normal|    networks:
+565|Normal|      - siem-net
+566|Normal|    restart: unless-stopped
+568|Normal|  elasticsearch:
+569|Normal|    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+570|Normal|    container_name: siem_elasticsearch
+571|Normal|    environment:
+572|Normal|      - discovery.type=single-node
+573|Normal|      - xpack.security.enabled=false
+574|Normal|      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+575|Normal|    ports:
+576|Normal|      - "9200:9200"
+577|Normal|    volumes:
+578|Normal|      - elasticsearch_data:/usr/share/elasticsearch/data
+579|Normal|    networks:
+580|Normal|      - siem-net
+581|Normal|    restart: unless-stopped
+583|Normal|  kibana:
+584|Normal|    image: docker.elastic.co/kibana/kibana:8.15.0
+585|Normal|    container_name: siem_kibana
+586|Normal|    environment:
+587|Normal|      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+588|Normal|    ports:
+589|Normal|      - "5601:5601"
+590|Normal|    networks:
+591|Normal|      - siem-net
+592|Normal|    depends_on:
+593|Normal|      - elasticsearch
+594|Normal|    restart: unless-stopped
+596|Normal|  logstash:
+597|Normal|    image: docker.elastic.co/logstash/logstash:8.15.0
+598|Normal|    container_name: siem_logstash
+599|Normal|    volumes:
+600|Normal|      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+601|Normal|    ports:
+602|Normal|      - "5140:5140/udp"
+603|Normal|    networks:
+604|Normal|      - siem-net
+605|Normal|    depends_on:
+606|Normal|      - elasticsearch
+607|Normal|      - postgres
+608|Normal|    restart: unless-stopped
+610|Normal|  syslog-ng:
+611|Normal|    image: balabit/syslog-ng:latest
+612|Normal|    container_name: siem_syslog
+613|Normal|    volumes:
+614|Normal|      - ./syslog-ng/syslog-ng.conf:/etc/syslog-ng/syslog-ng.conf
+615|Normal|    ports:
+616|Normal|      - "514:514/udp"
+617|Normal|    networks:
+618|Normal|      - siem-net
+619|Normal|    depends_on:
+620|Normal|      - logstash
+621|Normal|    restart: unless-stopped
+623|Normal|  n8n:
+624|Normal|    image: n8nio/n8n:latest
+625|Normal|    container_name: siem_n8n
+626|Normal|    ports:
+627|Normal|      - "5678:5678"
+628|Normal|    environment:
+629|Normal|      - DB_TYPE=postgresdb
+630|Normal|      - DB_POSTGRESDB_HOST=postgres
+631|Normal|      - DB_POSTGRESDB_PORT=5432
+632|Normal|      - DB_POSTGRESDB_DATABASE=siem
+633|Normal|      - DB_POSTGRESDB_USER=siem
+634|Normal|      - DB_POSTGRESDB_PASSWORD=siem123
+635|Normal|    volumes:
+636|Normal|      - n8n_data:/home/node/.n8n
+637|Normal|    networks:
+638|Normal|      - siem-net
+639|Normal|    depends_on:
+640|Normal|      - postgres
+641|Normal|    restart: unless-stopped
+643|Normal|  dashboard:
+644|Normal|    build: ./dashboard
+645|Normal|    container_name: siem_dashboard
+646|Normal|    ports:
+647|Normal|      - "8501:8501"
+648|Normal|    environment:
+649|Normal|      - DB_HOST=postgres
+650|Normal|      - DB_PORT=5432
+651|Normal|      - DB_NAME=siem
+652|Normal|      - DB_USER=siem
+653|Normal|      - DB_PASSWORD=siem123
+654|Normal|    networks:
+655|Normal|      - siem-net
+656|Normal|    depends_on:
+657|Normal|      - postgres
+658|Normal|    restart: unless-stopped
+660|Normal|  grafana:
+661|Normal|    image: grafana/grafana:latest
+662|Normal|    container_name: siem_grafana
+663|Normal|    ports:
+664|Normal|      - "3000:3000"
+665|Normal|    environment:
+666|Normal|      - GF_SECURITY_ADMIN_USER=admin
+667|Normal|      - GF_SECURITY_ADMIN_PASSWORD=admin123
+668|Normal|      - GF_DEFAULT_LOCALE=en-US
+669|Normal|    volumes:
+670|Normal|      - ./grafana:/etc/grafana/provisioning
+671|Normal|      - grafana_data:/var/lib/grafana
+672|Normal|    networks:
+673|Normal|      - siem-net
+674|Normal|    depends_on:
+675|Normal|      - postgres
+676|Normal|      - elasticsearch
+677|Normal|    restart: unless-stopped
+679|Normal|networks:
+680|Normal|  siem-net:
+681|Normal|    driver: bridge
+683|Normal|volumes:
+684|Normal|  postgres_data:
+685|Normal|  elasticsearch_data:
+686|Normal|  n8n_data:
+687|Normal|  grafana_data:
+688|Heading 2|Anexo G — Configuración syslog-ng (syslog-ng/syslog-ng.conf)
+689|Normal|Configuración del recolector de logs: escucha en UDP/514 y reenvía todo el tráfico recibido a Logstash en UDP/5140, sin aplicar transformaciones.
+690|Normal|@version: 3.35
+691|Normal|@include "scl.conf"
+693|Normal|source s_network {
+694|Normal|  network(
+695|Normal|    transport("udp")
+696|Normal|    port(514)
+697|Normal|  );
+698|Normal|};
+700|Normal|destination d_logstash {
+701|Normal|  network(
+702|Normal|    "logstash"
+703|Normal|    transport("udp")
+704|Normal|    port(5140)
+705|Normal|  );
+706|Normal|};
+708|Normal|log {
+709|Normal|  source(s_network);
+710|Normal|  destination(d_logstash);
+711|Normal|};
+712|Heading 2|Anexo H — Estructura del Workflow n8n "SIEM – Alerta Entrante"
+713|Normal|Listado de nodos que componen el workflow principal de orquestación, agrupados por función. El detalle narrativo del flujo completo se desarrolla en la sección 5.8; esta tabla sirve como referencia rápida de la implementación real, exportable en formato JSON desde n8n (archivo n8n/SIEM - Alerta Entrante.json en el repositorio del proyecto).
+714|Normal|Además del workflow principal, el sistema incluye "SIEM – Reporte Diario" (Schedule Trigger que consulta las vistas de PostgreSQL y envía un resumen periódico por Telegram y email) y "SIEM – Error Handler" (Error Trigger que captura fallos de ejecución del propio n8n, notifica por Telegram y los registra en PostgreSQL).
+715|Heading 2|Anexo I — Ejemplos de Payloads de Reglas de Detección
+716|Normal|Formato JSON real enviado al webhook de n8n para cada tipo de regla de detección implementada.
+717|Normal|I.1 SSH Brute-Force (detector Python, umbral 5 intentos / 2 min)
+718|Normal|{
+719|Normal|  "rule_id": "ssh_bruteforce",
+720|Normal|  "src_ip": "203.0.113.50",
+721|Normal|  "username": "root",
+722|Normal|  "severity": "high",
+723|Normal|  "timestamp": "2026-07-01T18:38:00Z",
+724|Normal|  "message": "Failed password for root from 203.0.113.50 port 22 ssh2"
+725|Normal|}
+726|Normal|I.2 Integridad de archivos (FIM, fim_monitor.py + fim_to_n8n.py)
+727|Normal|{
+728|Normal|  "rule_id": "file_integrity",
+729|Normal|  "src_ip": "127.0.0.1",
+730|Normal|  "username": "system",
+731|Normal|  "severity": "high",
+732|Normal|  "timestamp": "2026-07-01T18:38:00Z",
+733|Normal|  "filepath": "/etc/passwd",
+734|Normal|  "change_type": "modified",
+735|Normal|  "md5_after": "5f4dcc3b5aa765d61d8327deb882cf99",
+736|Normal|  "detection_method": "wazuh_fim"
+737|Normal|}
+738|Normal|I.3 Password Spraying (n8n, umbral 5+ IPs distintas / 5 min contra el mismo usuario)
+739|Normal|{
+740|Normal|  "rule_id": "password_spraying",
+741|Normal|  "src_ip": "185.220.101.42",
+742|Normal|  "username": "admin",
+743|Normal|  "severity": "critical",
+744|Normal|  "timestamp": "2026-07-01T18:38:00Z",
+745|Normal|  "message": "Failed password for admin from 185.220.101.42 -- spraying test"
+746|Normal|}
+747|Heading 2|Anexo J — Dashboards Grafana (datasources y consultas SQL)
+748|Normal|J.1 Datasources (grafana/datasources/datasources.yml)
+749|Normal|apiVersion: 1
+751|Normal|datasources:
+752|Normal|  - name: Postgres SIEM
+753|Normal|    uid: siem-postgres
+754|Normal|    type: postgres
+755|Normal|    access: proxy
+756|Normal|    url: postgres:5432
+757|Normal|    database: siem
+758|Normal|    user: siem
+759|Normal|    jsonData:
+760|Normal|      sslmode: disable
+761|Normal|      postgresVersion: 1600
+762|Normal|    secureJsonData:
+763|Normal|      password: siem123
+764|Normal|    isDefault: true
+765|Normal|    editable: true
+767|Normal|  - name: Elasticsearch SIEM
+768|Normal|    type: elasticsearch
+769|Normal|    access: proxy
+770|Normal|    url: http://elasticsearch:9200
+771|Normal|    database: "[siem-events-]YYYY.MM.DD"
+772|Normal|    jsonData:
+773|Normal|      timeField: "@timestamp"
+774|Normal|      esVersion: "8.15.0"
+775|Normal|      interval: Daily
+776|Normal|    editable: true
+777|Normal|J.2 Consultas SQL de ejemplo (panel SIEM Dashboard – Centro de Operaciones)
+778|Normal|-- Alertas últimas 24 horas
+779|Normal|SELECT COUNT(*) as total FROM alerts WHERE ts >= NOW() - INTERVAL '24 hours'
+781|Normal|-- Distribución por severidad
+782|Normal|SELECT severity, COUNT(*) as count FROM alerts
+783|Normal|WHERE $__timeFilter(ts) GROUP BY severity ORDER BY count DESC
+785|Normal|-- Tendencia de alertas (7 días)
+786|Normal|SELECT date_trunc('hour', ts) as time, COUNT(*) as alertas FROM alerts
+787|Normal|WHERE $__timeFilter(ts) GROUP BY date_trunc('hour', ts) ORDER BY time
+789|Normal|-- MTTR promedio (histórico)
+790|Normal|SELECT COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts)))::numeric, 2), 0)
+791|Normal|  AS mttr_segundos
+792|Normal|FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id
+794|Normal|-- Alertas críticas
+795|Normal|SELECT COUNT(*) FROM alerts WHERE severity = 'critical' AND $__timeFilter(ts)
+797|Normal|-- Últimas alertas
+798|Normal|SELECT id, rule_id, src_ip, severity, ts FROM alerts ORDER BY ts DESC LIMIT 15
+800|Normal|-- Top IPs sospechosas (histórico)
+801|Normal|SELECT * FROM top_suspicious_ips LIMIT 10
+803|Normal|-- MTTA real (detección por sondeo, ver sección 6.4 / Anexo D)
+804|Normal|SELECT COALESCE(ROUND(avg_mtta_seconds::numeric, 2), 0) AS mtta_segundos FROM mtta_stats

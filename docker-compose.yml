@@ -10,7 +10,7 @@ services:
     container_name: siem_postgres
     environment:
       POSTGRES_USER: siem
-      POSTGRES_PASSWORD: siem123
+      POSTGRES_PASSWORD: siem123  # CREDENCIAL DE LABORATORIO
       POSTGRES_DB: siem
     ports:
       - "5432:5432"
@@ -88,6 +88,10 @@ services:
       - DB_POSTGRESDB_DATABASE=siem
       - DB_POSTGRESDB_USER=siem
       - DB_POSTGRESDB_PASSWORD=siem123
+      # Credenciales de laboratorio para autenticación básica en n8n
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=admin123  # CREDENCIAL DE LABORATORIO
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -106,7 +110,7 @@ services:
       - DB_PORT=5432
       - DB_NAME=siem
       - DB_USER=siem
-      - DB_PASSWORD=siem123
+      - DB_PASSWORD=siem123  # CREDENCIAL DE LABORATORIO
     networks:
       - siem-net
     depends_on:
@@ -120,7 +124,7 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_SECURITY_ADMIN_PASSWORD=admin123  # CREDENCIAL DE LABORATORIO
       - GF_DEFAULT_LOCALE=en-US
     volumes:
       - ./grafana:/etc/grafana/provisioning
