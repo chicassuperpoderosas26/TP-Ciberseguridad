@@ -15,7 +15,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO failed_alerts (error_node, error_message, alert_data)\nVALUES (\n  '{{ $json.execution.lastNodeExecuted }}',\n  '{{ $json.execution.error.description.substring(0, 200) }}',\n  '{}'::jsonb\n)\n",
+        "query": "INSERT INTO failed_alerts (error_node, error_message, alert_data)\nVALUES (\n  '{{ $('Error Trigger').item.json.execution.lastNodeExecuted }}',\n  '{{ $('Error Trigger').item.json.execution.error.description.substring(0, 200) }}',\n  '{}'::jsonb\n)\n",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
@@ -36,7 +36,7 @@
     {
       "parameters": {
         "chatId": "6196734302",
-        "text": "=❌ ERROR EN SIEM\n\n⚙️ Nodo: {{ $json.execution.lastNodeExecuted }}\n📋 Error: {{ $json.execution.error.message }}\n🔗 Workflow: {{ $json.execution.workflowData.name }}\n🔢 Ejecución: #{{ $json.execution.id }}\n\n⚠️ Revisar manualmente en n8n\n",
+        "text": "=❌ ERROR EN SIEM\n\n⚙️ Nodo: {{ $json.execution.lastNodeExecuted }}\n📋 Error: {{ $json.execution.error.message }}\n🔗 Workflow: {{ $json.workflow.name }}\n🔢 Ejecución: #{{ $json.execution.id }}\n\n⚠️ Revisar manualmente en n8n\n",
         "additionalFields": {}
       },
       "type": "n8n-nodes-base.telegram",

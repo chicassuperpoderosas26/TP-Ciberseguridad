@@ -1,0 +1,3 @@
+id,ts,error_node,error_message,alert_data,retry_count,resolved,resolved_at
+1,2026-08-04 22:45:06.568748,Actualizar Enforcement,"Failed query: UPDATE ip_blacklist SET enforced = undefined, enforcement_message = 'undefined', enforced_at = NOW() WHERE ip = 'undefined' AND active = true;",{},0,f,
+2,2026-08-04 22:45:06.610036,Actualizar Enforcement,"Failed query: UPDATE ip_blacklist SET enforced = undefined, enforcement_message = 'undefined', enforced_at = NOW() WHERE ip = 'undefined' AND active = true;",{},0,f,

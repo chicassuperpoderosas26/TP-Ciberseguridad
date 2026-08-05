@@ -1,7 +1,14 @@
+import sys
 import requests
 import time
 from datetime import datetime, timedelta
 import json
+
+# Evita UnicodeEncodeError con los emojis de los prints cuando la consola
+# de Windows no esta en UTF-8 (mismo fix ya aplicado en fim_monitor.py y
+# attack_simulator.py).
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Configuración
 ELASTICSEARCH_URL = "http://localhost:9200"
@@ -36,6 +43,13 @@ def buscar_ssh_bruteforce():
                 "terms": {
                     "field": "src_ip.keyword",
                     "min_doc_count": THRESHOLD
+                },
+                "aggs": {
+                    "primer_evento": {
+                        "min": {
+                            "field": "@timestamp"
+                        }
+                    }
                 }
             }
         }
@@ -57,18 +71,20 @@ def buscar_ssh_bruteforce():
             for bucket in buckets:
                 ip = bucket["key"]
                 count = bucket["doc_count"]
-                
-                print(f"🚨 ALERTA: SSH Brute Force detectado desde {ip} - {count} intentos fallidos")
-                enviar_alerta_n8n(ip, count)
+                primer_evento = bucket.get("primer_evento", {}).get("value_as_string")
+
+                print(f"🚨 ALERTA: SSH Brute Force detectado desde {ip} - {count} intentos fallidos "
+                      f"(primer evento real: {primer_evento})")
+                enviar_alerta_n8n(ip, count, primer_evento)
         else:
             print(f"❌ Error consultando Elasticsearch: {response.status_code}")
             
     except Exception as e:
         print(f"❌ Error: {e}")
 
-def enviar_alerta_n8n(src_ip, event_count):
+def enviar_alerta_n8n(src_ip, event_count, event_time=None):
     """Envía alerta a n8n"""
-    
+
     alerta = {
         "rule_id": "ssh_bruteforce_auto",
         "src_ip": src_ip,
@@ -76,7 +92,10 @@ def enviar_alerta_n8n(src_ip, event_count):
         "severity": "high",
         "event_count": event_count,
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "detection_method": "automated_script"
+        "detection_method": "automated_script",
+        # Timestamp real del primer evento detectado en Elasticsearch (no el
+        # momento de deteccion) - permite calcular MTTA real en n8n/Postgres.
+        "event_time": event_time,
     }
     
     headers = {

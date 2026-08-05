@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS alerts (
     status VARCHAR(30) DEFAULT 'new',
     acknowledged_at TIMESTAMPTZ,
     acknowledged_by TEXT,
-    country_code VARCHAR(5)
+    country_code VARCHAR(5),
+    event_occurred_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_alerts_ts ON alerts(ts DESC);
@@ -62,10 +63,17 @@ FROM alerts a
 JOIN playbook_runs p ON p.alert_id = a.id;
 
 -- Vista para cálculo de MTTA (Mean Time To Acknowledge)
+-- MTTA = tiempo entre que el evento ocurre en el mundo real (event_occurred_at,
+-- ej. timestamp de un log syslog) y el momento en que el sistema lo detecta e
+-- inserta la alerta (ts). Solo aplica a detectores por sondeo periodico que
+-- reportan el timestamp real del evento (ej. ssh_bruteforce_detector.py);
+-- las alertas sinteticas del simulador no tienen event_occurred_at y quedan
+-- fuera del calculo (NULL).
 CREATE OR REPLACE VIEW mtta_stats AS
-SELECT 
-    AVG(EXTRACT(EPOCH FROM (acknowledged_at - ts))) AS avg_mtta_seconds,
-    COUNT(*) FILTER (WHERE acknowledged_at IS NOT NULL) AS acknowledged_count,
+SELECT
+    AVG(EXTRACT(EPOCH FROM (ts - event_occurred_at))) FILTER (WHERE event_occurred_at IS NOT NULL) AS avg_mtta_seconds,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (ts - event_occurred_at))) FILTER (WHERE event_occurred_at IS NOT NULL) AS median_mtta_seconds,
+    COUNT(*) FILTER (WHERE event_occurred_at IS NOT NULL) AS acknowledged_count,
     COUNT(*) AS total_alerts
 FROM alerts;
 

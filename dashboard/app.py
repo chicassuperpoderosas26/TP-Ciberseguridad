@@ -38,7 +38,6 @@ REFRESH_SECONDS = 30
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Panel de Operaciones de Seguridad — SOC Dashboard",
-    page_icon="⚗️",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -196,7 +195,9 @@ def get_kpis():
            FROM alerts a JOIN playbook_runs p ON p.alert_id = a.id)               AS mttr_sec,
           (SELECT COALESCE(automation_percentage, 0) FROM automation_rate_operational) AS auto_pct,
           (SELECT COUNT(*) FROM failed_alerts WHERE resolved = false)              AS failed,
-          (SELECT COUNT(*) FROM ip_blacklist WHERE active = true AND (expires_at IS NULL OR expires_at > NOW())) AS ips_bloqueadas
+          (SELECT COUNT(*) FROM ip_blacklist WHERE active = true AND (expires_at IS NULL OR expires_at > NOW())) AS ips_bloqueadas,
+          (SELECT ROUND(avg_mtta_seconds::numeric, 1) FROM mtta_stats)              AS mtta_sec,
+          (SELECT acknowledged_count FROM mtta_stats)                              AS mtta_n
     """)
 
 
@@ -401,11 +402,19 @@ if not kpis_df.empty:
 # ── KPI fila 2: SOAR ──────────────────────────────────────────────────────────
 if not kpis_df.empty:
     k = kpis_df.iloc[0]
-    col_b1, col_b2 = st.columns([1, 5])
+    col_b1, col_b2, col_b3 = st.columns([1, 1, 4])
     with col_b1:
         bloq = int(k["ips_bloqueadas"])
         css  = "kpi-critical" if bloq > 0 else "kpi-ok"
         kpi_card("IPs bloqueadas (SOAR)", bloq, css)
+    with col_b2:
+        mtta_n = int(k["mtta_n"]) if k["mtta_n"] is not None else 0
+        if mtta_n > 0:
+            mtta = float(k["mtta_sec"])
+            css = "kpi-critical" if mtta > 120 else ("kpi-warning" if mtta > 60 else "kpi-ok")
+            kpi_card(f"MTTA real (n={mtta_n})", f"{mtta:.1f}s", css)
+        else:
+            kpi_card("MTTA real", "Sin datos", "kpi-info")
 
 # ── Gráficos principales ──────────────────────────────────────────────────────
 st.markdown('<div class="section-title">Análisis de alertas</div>', unsafe_allow_html=True)

@@ -82,14 +82,15 @@ logger.addHandler(_file_handler)
 # ============================================
 
 # IPs simuladas de atacantes (publicas, con pais real via AbuseIPDB para el mapa)
+# Mezcla deliberada de score de abuso alto y bajo para que el Risk Score varie
 ATTACKER_IPS = [
-    "103.140.187.60",
-    "80.94.95.116",
-    "196.251.83.100",
-    "45.33.32.156",
-    "185.220.101.42",
-    "91.240.118.172",
-    "178.128.95.10",
+    "185.156.73.233",   # NL, abuso ~100%
+    "80.94.95.116",     # RO, abuso ~100%
+    "196.251.83.100",   # NL, abuso bajo
+    "45.33.32.156",     # US, abuso bajo-medio
+    "185.220.101.42",   # DE, abuso ~94%
+    "89.234.157.254",   # FR, abuso ~87%
+    "178.128.95.10",    # SG, abuso bajo (limpia, para contraste)
 ]
 
 # Usuarios objetivo
@@ -567,7 +568,7 @@ def full_auto_simulation(stats=None):
     results = []
 
     print(f"\n{C.BOLD}{C.CYAN}FASE 1: Ataque SSH Brute Force{C.RESET}")
-    results.append(ssh_bruteforce(ip="103.140.187.60", user="root", count=6, delay=1.5, stats=stats))
+    results.append(ssh_bruteforce(ip="185.156.73.233", user="root", count=6, delay=1.5, stats=stats))
     time.sleep(3)
 
     print(f"\n{C.BOLD}{C.CYAN}FASE 2: Cambios de integridad detectados{C.RESET}")
@@ -671,7 +672,7 @@ def rama4_reincidencia(stats=None):
 def rama5_password_spraying_workflow(stats=None):
     """Rama 5: 6 IPs distintas atacando el mismo usuario — detecta password spraying."""
     user = "admin"
-    ips = ["103.140.187.60", "80.94.95.116", "185.220.101.42", "91.240.118.172", "178.128.95.10", "45.33.32.156"]
+    ips = ["185.156.73.233", "80.94.95.116", "185.220.101.42", "89.234.157.254", "178.128.95.10", "45.33.32.156"]
     print(f"\n{C.BOLD}{C.RED}[RAMA 5] Password Spraying{C.RESET}")
     print(f"{C.GRAY}6 IPs distintas -> usuario: {user}{C.RESET}")
     print(f"{C.GRAY}Espera: alertas individuales + mensaje PASSWORD SPRAYING DETECTADO{C.RESET}")

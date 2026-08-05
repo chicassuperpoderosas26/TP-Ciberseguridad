@@ -11,10 +11,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -896,
-        0
+        -3856,
+        1264
       ],
-      "id": "2aabd950-7001-44bf-9ca4-77e6860f6e0f",
+      "id": "02ec0b7b-0d35-4291-a999-46a3b22fcbfe",
       "name": "Webhook",
       "webhookId": "2038d281-59b7-4db6-924d-58bf76238ebf",
       "retryOnFail": false,
@@ -28,18 +28,18 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO alerts(rule_id, src_ip, username, severity, raw)\nVALUES ($1, $2, $3, $4, $5::jsonb)\nRETURNING id;",
+        "query": "INSERT INTO alerts(rule_id, src_ip, username, severity, raw, event_occurred_at)\nVALUES ($1, $2, $3, $4, $5::jsonb, NULLIF($6, 'NONE')::timestamptz)\nRETURNING id;",
         "options": {
-          "queryReplacement": "={{$node[\"Enriquecer Datos\"].json.body.rule_id}}, {{$node[\"Enriquecer Datos\"].json.body.src_ip}}, {{$node[\"Enriquecer Datos\"].json.body.username}}, {{$node[\"Enriquecer Datos\"].json.body.severity}}, {{JSON.stringify($node[\"Enriquecer Datos\"].json.body || {})}}"
+          "queryReplacement": "={{$node[\"Enriquecer Datos\"].json.body.rule_id}}, {{$node[\"Enriquecer Datos\"].json.body.src_ip}}, {{$node[\"Enriquecer Datos\"].json.body.username}}, {{$node[\"Enriquecer Datos\"].json.body.severity}}, {{JSON.stringify($node[\"Enriquecer Datos\"].json.body || {})}}, {{$node[\"Enriquecer Datos\"].json.body.event_time || 'NONE'}}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        496,
-        -176
+        -2464,
+        1088
       ],
-      "id": "a90b2369-33fb-4655-8121-d5bdfdc17e9a",
+      "id": "8326f832-97c6-4d9c-8530-9180fa6c0db4",
       "name": "Insertar Alerta",
       "retryOnFail": true,
       "waitBetweenTries": 5000,
@@ -59,10 +59,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2080,
-        -192
+        -880,
+        1072
       ],
-      "id": "a0944443-1fef-472f-88af-c31861523ea7",
+      "id": "46fb6ede-cd4e-4615-abd2-e551d786a4e4",
       "name": "Registrar Playbook",
       "retryOnFail": true,
       "waitBetweenTries": 5000,
@@ -133,10 +133,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        -640,
-        0
+        -3600,
+        1264
       ],
-      "id": "2c4e376b-9cc0-4b36-aa73-2a2a60222fff",
+      "id": "275442fe-cd4d-41e2-9a58-576205980853",
       "name": "Enriquecer Datos"
     },
     {
@@ -148,10 +148,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2320,
-        -224
+        -640,
+        1040
       ],
-      "id": "24aef771-6736-43e8-a358-e246832ad092",
+      "id": "3f6bb22a-201e-4f4d-9e13-fdcbb167349f",
       "name": "Enviar Mensaje",
       "webhookId": "e92aa5bd-113f-417c-9fa0-8336d6363e8e",
       "retryOnFail": true,
@@ -174,10 +174,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1232,
-        -176
+        -1728,
+        1088
       ],
-      "id": "65156500-d2da-4222-a88a-98814eebc0e6",
+      "id": "84dd3e72-28f5-498e-9767-20212ee1a296",
       "name": "Contar Alertas",
       "retryOnFail": true,
       "waitBetweenTries": 5000,
@@ -215,10 +215,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        1856,
-        -208
+        -1104,
+        1056
       ],
-      "id": "8023c4bd-42a4-4deb-a9e6-e7b2725b6b75",
+      "id": "4a26740d-f515-4ac3-b487-3eb20377d4ec",
       "name": "Detectar Ataque"
     },
     {
@@ -230,10 +230,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3888,
-        -944
+        928,
+        320
       ],
-      "id": "dce6a238-0c5b-4c6b-ba87-e30e1f80a3e1",
+      "id": "1a0db13e-e15e-4885-9ce8-9d9717f8ce86",
       "name": "Mensaje especial",
       "webhookId": "63d56961-bc28-498c-a9cb-c95dc9b67156",
       "credentials": {
@@ -252,10 +252,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2672,
-        -704
+        -288,
+        560
       ],
-      "id": "69b4d343-be14-49d4-a8b4-74e691ed763a",
+      "id": "2dbb2f3c-133a-4bb8-85dd-93bdc2b0fd30",
       "name": "Crear Incidente",
       "retryOnFail": true,
       "waitBetweenTries": 5000,
@@ -277,10 +277,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2128,
-        -512
+        -832,
+        752
       ],
-      "id": "a1bc46c8-106e-406f-95e0-3f535d3a8d97",
+      "id": "d17c7da1-710f-4168-85ae-d36e12f19cbd",
       "name": "Verificar Incidente Abierto",
       "credentials": {
         "postgres": {
@@ -316,10 +316,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        2368,
-        -512
+        -592,
+        752
       ],
-      "id": "da61a7da-612e-471b-9050-83841c06dabe",
+      "id": "b299c4d7-acdd-48fe-8d62-295b9e37c6f1",
       "name": "¿Crear nuevo incidente?"
     },
     {
@@ -333,10 +333,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -160,
-        0
+        -3120,
+        1264
       ],
-      "id": "de8137dc-4fc1-46b5-b747-f9b6d6dd6882",
+      "id": "ebf0b0cd-6d02-4d54-8877-a5ddae71c73f",
       "name": "Verificar Incidente Activo",
       "credentials": {
         "postgres": {
@@ -372,10 +372,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        64,
-        0
+        -2896,
+        1264
       ],
-      "id": "e97d489a-6480-4964-9024-a2ffc51953b2",
+      "id": "1688ba8d-15e4-4719-befb-86438d92414f",
       "name": "¿Incidente ya existe?"
     },
     {
@@ -410,10 +410,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        816,
-        -176
+        -2144,
+        1088
       ],
-      "id": "875d843c-e6eb-49ed-a3bc-79eed3b22854",
+      "id": "9f05a2b4-a4a6-4314-96c8-c93031daa26c",
       "name": "Consultar AbuseIPDB",
       "retryOnFail": true,
       "maxTries": 2,
@@ -438,10 +438,10 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        3888,
-        -720
+        928,
+        544
       ],
-      "id": "e9c2fa8b-7948-4b2f-92aa-7f56250e9011",
+      "id": "18ba0788-f96a-44f0-a31c-79e7d35da7e4",
       "name": "Email de Incidente",
       "webhookId": "481eed32-e13d-445c-9177-1fc949461a0e",
       "credentials": {
@@ -463,10 +463,10 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        2304,
-        -16
+        -656,
+        1248
       ],
-      "id": "504bb570-9be4-4c44-91ac-cf796ad75c2f",
+      "id": "4ca9989b-f99f-4b11-a240-754862ee2692",
       "name": "Email Alerta",
       "webhookId": "343965fd-acb0-433d-8343-7a1ea2256619",
       "retryOnFail": true,
@@ -486,10 +486,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1664,
-        -208
+        -1296,
+        1056
       ],
-      "id": "cb4ae2c5-49b0-4d02-9b21-e1b9e166f829",
+      "id": "b4b6ba8b-0f8e-41c3-9737-c4e012c70ee5",
       "name": "Calcular Risk Score"
     },
     {
@@ -501,10 +501,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1472,
-        -208
+        -1488,
+        1056
       ],
-      "id": "094aa377-3f72-465a-aa7b-6b66480b75d8",
+      "id": "2d5370f7-6a8f-4f8f-ab68-ca4c0e67692c",
       "name": "Reputación Interna",
       "credentials": {
         "postgres": {
@@ -522,10 +522,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        368,
-        112
+        -2592,
+        1376
       ],
-      "id": "1baf41b2-6237-4eb7-8ad1-e960651b3ff2",
+      "id": "2d1872db-0a80-4948-bf8a-939e73d9ca6a",
       "name": "Alerta Reincidencia",
       "webhookId": "29e79e8c-f581-4598-a0d4-9b273e1ee8cb",
       "credentials": {
@@ -614,10 +614,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.4,
       "position": [
-        -416,
-        0
+        -3376,
+        1264
       ],
-      "id": "c3083a3c-76b7-41cb-90e3-614b9993b843",
+      "id": "3cfa0121-abbb-4202-888c-b91d05903d67",
       "name": "Filtrar por Severidad"
     },
     {
@@ -631,10 +631,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        656,
-        -400
+        -2304,
+        864
       ],
-      "id": "9c484118-fef8-4d91-b6cf-95155e2e6a96",
+      "id": "b3939e85-0000-4216-bfe1-3e37d9e0f0e3",
       "name": "Contar IPs únicas",
       "credentials": {
         "postgres": {
@@ -670,10 +670,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        832,
-        -400
+        -2128,
+        864
       ],
-      "id": "005a10d2-3fce-4fc7-a257-f6a6957c38d6",
+      "id": "01ea9700-0768-44cf-9378-3f445e141cec",
       "name": "¿Es Password Spraying?"
     },
     {
@@ -685,10 +685,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1152,
-        -576
+        -1808,
+        688
       ],
-      "id": "4bc810d5-b857-49b3-96e8-010f3501fcae",
+      "id": "3eea87c1-ed3e-4e54-961c-d23e69787f72",
       "name": "Crear Incidente Spraying",
       "credentials": {
         "postgres": {
@@ -706,10 +706,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1360,
-        -576
+        -1600,
+        688
       ],
-      "id": "59405915-5217-4dde-94d4-680a44f06198",
+      "id": "646db26b-c069-4e97-8b06-4dacf493a388",
       "name": "Alerta Spraying",
       "webhookId": "09f739ca-ff94-4b73-97f7-c66b8591b758",
       "credentials": {
@@ -728,10 +728,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        2912,
-        -832
+        -48,
+        432
       ],
-      "id": "55a26aaf-8bd4-4fc5-821e-5990f4490463",
+      "id": "2427af69-05d6-48aa-a2bc-1c547f2f2372",
       "name": "Bloquear IP",
       "credentials": {
         "postgres": {
@@ -749,10 +749,10 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        3584,
-        -832
+        624,
+        432
       ],
-      "id": "6b332652-b9cb-48fe-8c5d-8c2648a8c14a",
+      "id": "aebd526d-81fe-471f-a752-0276691d5e13",
       "name": "Notificar Bloqueo",
       "webhookId": "28f82d2a-77ba-43eb-89b7-ca87e24a681d",
       "credentials": {
@@ -765,18 +765,18 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "UPDATE alerts \nSET country_code = NULLIF($1, '')\nWHERE id = $2\n",
+        "query": "UPDATE alerts \nSET country_code = NULLIF($1, 'N/A')\nWHERE id = $2\n",
         "options": {
-          "queryReplacement": "=={{$('Consultar AbuseIPDB').item.json.data.countryCode}}, {{$('Insertar Alerta').item.json.id}}\n\n\n\n\n"
+          "queryReplacement": "={{$('Consultar AbuseIPDB').item.json.data.countryCode || 'N/A'}}, {{$('Insertar Alerta').item.json.id}}"
         }
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1024,
-        -176
+        -1936,
+        1088
       ],
-      "id": "75f76094-7e99-4bb8-a26c-2c43e3dcc5e8",
+      "id": "25ff62e6-b899-494f-b539-fd03e17a0d19",
       "name": "Guardar País",
       "credentials": {
         "postgres": {
@@ -806,10 +806,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        3120,
-        -832
+        160,
+        432
       ],
-      "id": "1e18b618-a992-4330-ae5a-323e2e55f978",
+      "id": "31d855d9-1abb-498c-b152-6042861e66d2",
       "name": "Enforce Block",
       "retryOnFail": true,
       "onError": "continueRegularOutput"
@@ -823,10 +823,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        3344,
-        -832
+        384,
+        432
       ],
-      "id": "d0b8c207-4347-45d0-bf7a-be5ac30cfeba",
+      "id": "1450af03-28f3-4a71-b1e5-ee2eece16f02",
       "name": "Actualizar Enforcement",
       "credentials": {
         "postgres": {
@@ -844,10 +844,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        4224,
-        -832
+        1264,
+        432
       ],
-      "id": "db4e49e6-71e6-457b-9274-3db0e1f164d5",
+      "id": "2344560e-6444-416b-8931-1c569c08a5d0",
       "name": "Registrar Playbook1",
       "credentials": {
         "postgres": {
@@ -865,10 +865,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        1568,
-        -576
+        -1392,
+        688
       ],
-      "id": "2db4c758-286c-42ac-ba63-cf879ae03ff3",
+      "id": "df114339-2e7f-4c7b-a0bd-63e87306040a",
       "name": "Registrar Playbook2",
       "credentials": {
         "postgres": {
@@ -888,16 +888,72 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        -240,
-        272
+        -3200,
+        1536
       ],
-      "id": "6ba1b985-721b-482e-ab4f-560e41dd5498",
+      "id": "8fd5e00c-e35b-40f9-b6d3-924cbb36686d",
       "name": "Registrar Playbook Low",
       "credentials": {
         "postgres": {
           "id": "AIctheJOuaGPqoGM",
           "name": "Postgres account"
         }
+      }
+    },
+    {
+      "id": "2a0ede74-44a8-469e-b9d6-517ae7616bb1",
+      "name": "Verificar Incidente Spraying Activo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1968,
+        864
+      ],
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT COUNT(*) AS total\nFROM incidents\nWHERE type = 'password_spraying'\nAND username = $1\nAND status = 'open'\nAND created_at > NOW() - INTERVAL '10 minutes';",
+        "options": {
+          "queryReplacement": "={{$('Enriquecer Datos').item.json.username}}"
+        }
+      },
+      "credentials": {
+        "postgres": {
+          "id": "AIctheJOuaGPqoGM",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "id": "e2ac45ed-22cf-4a7e-8a18-de8fc26a1d11",
+      "name": "¿Ya existe incidente spraying?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1888,
+        864
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ Number($json.total) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "id": "condition-1785891626474-esnss2xs4"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     }
   ],
@@ -955,11 +1011,6 @@
             "index": 0
           }
         ]
-      ]
-    },
-    "Enviar Mensaje": {
-      "main": [
-        []
       ]
     },
     "Contar Alertas": {
@@ -1064,11 +1115,6 @@
         ]
       ]
     },
-    "Email Alerta": {
-      "main": [
-        []
-      ]
-    },
     "Calcular Risk Score": {
       "main": [
         [
@@ -1121,17 +1167,6 @@
         [
           {
             "node": "¿Es Password Spraying?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "¿Es Password Spraying?": {
-      "main": [
-        [
-          {
-            "node": "Crear Incidente Spraying",
             "type": "main",
             "index": 0
           }
@@ -1236,6 +1271,39 @@
         [
           {
             "node": "Registrar Playbook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Incidente Spraying Activo": {
+      "main": [
+        [
+          {
+            "node": "¿Ya existe incidente spraying?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Ya existe incidente spraying?": {
+      "main": [
+        [
+          {
+            "node": "Crear Incidente Spraying",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Password Spraying?": {
+      "main": [
+        [
+          {
+            "node": "Verificar Incidente Spraying Activo",
             "type": "main",
             "index": 0
           }
