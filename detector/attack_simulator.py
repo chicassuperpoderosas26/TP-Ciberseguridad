@@ -691,6 +691,72 @@ def rama5_password_spraying_workflow(stats=None):
     return all_ok
 
 
+def mtta_real_test():
+    """Prueba de MTTA real: abre el detector SSH por sondeo (ssh_bruteforce_detector.py)
+    en una consola nueva y manda 6 rafagas de eventos syslog reales espaciadas a lo
+    largo de una ventana de ~120s, para medir el tiempo real de deteccion (MTTA) por
+    sondeo — a diferencia de las demas opciones de este menu, que mandan alertas
+    directo al webhook de n8n y no pasan por ningun mecanismo de sondeo."""
+    import socket
+    import subprocess as sp
+
+    print(f"\n{C.BOLD}{C.CYAN}[MTTA REAL] Prueba de medicion por sondeo{C.RESET}")
+    print(f"{C.GRAY}Abriendo detector SSH en una consola nueva...{C.RESET}")
+
+    detector_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ssh_bruteforce_detector.py")
+    try:
+        sp.Popen([sys.executable, detector_path], creationflags=sp.CREATE_NEW_CONSOLE)
+        print(f"{C.GREEN}Detector abierto en una ventana nueva.{C.RESET}")
+    except Exception as e:
+        print(f"  {C.RED}No se pudo abrir el detector automaticamente: {e}{C.RESET}")
+        print(f"  {C.YELLOW}Abrilo manualmente: python ssh_bruteforce_detector.py{C.RESET}")
+        input("  Presiona Enter cuando este corriendo... ")
+
+    print(f"{C.GRAY}Esperando 5s a que el detector arranque...{C.RESET}")
+    time.sleep(5)
+
+    HOST, PORT = "127.0.0.1", 514
+    attacker_ips = [
+        "203.0.113.201", "203.0.113.202", "203.0.113.203",
+        "203.0.113.204", "203.0.113.205", "203.0.113.206",
+    ]
+    offsets = [10, 30, 50, 70, 90, 110]  # segundos desde el inicio del envio
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    def build_msg(ip, user="root"):
+        now = datetime.now(timezone.utc)
+        ts = now.strftime("%b %d %H:%M:%S")
+        msg = f"<38>{ts} testhost sshd[12345]: Failed password for {user} from {ip} port 22 ssh2"
+        return msg, now
+
+    def send_burst(ip):
+        first_time = None
+        for _ in range(6):
+            msg, sent_at = build_msg(ip)
+            if first_time is None:
+                first_time = sent_at
+            sock.sendto(msg.encode("utf-8"), (HOST, PORT))
+            time.sleep(0.3)
+        return first_time
+
+    print(f"\n{C.BOLD}Enviando 6 rafagas de eventos syslog reales (~120s)...{C.RESET}")
+    print(f"{C.GRAY}{'-' * 65}{C.RESET}")
+    start = time.monotonic()
+    for ip, offset in zip(attacker_ips, offsets):
+        wait = offset - (time.monotonic() - start)
+        if wait > 0:
+            time.sleep(wait)
+        first_time = send_burst(ip)
+        print(f"  [t+{offset}s] Rafaga enviada IP={ip} evento_real={first_time.strftime('%Y-%m-%dT%H:%M:%SZ')}")
+
+    print(f"\n{C.GREEN}Listo — 6 eventos reales enviados.{C.RESET}")
+    print(f"{C.GRAY}El detector puede tardar hasta 2 ciclos (~240s) en procesarlos todos.{C.RESET}")
+    print(f"{C.GRAY}Resultado en: Grafana (panel 'MTTA real'), dashboard Streamlit, o:{C.RESET}")
+    print(f"{C.GRAY}  SELECT * FROM mtta_stats;{C.RESET}")
+    print(f"{C.GRAY}La ventana del detector queda abierta — cerrala cuando termines.{C.RESET}")
+
+
 def rama3_limpiar():
     """Limpia los datos de prueba de la Rama 3 en la DB."""
     import subprocess
@@ -734,6 +800,8 @@ def interactive_menu(stats):
         print(f"  {C.RED}R3.{C.RESET} Rama 3 — Nuevo incidente + Enforce Block")
         print(f"  {C.YELLOW}R4.{C.RESET} Rama 4 — IP Reincidente (requiere correr R3 antes)")
         print(f"  {C.MAGENTA}R5.{C.RESET} Rama 5 — Password Spraying (6 IPs -> admin)")
+        print(f"\n{C.BOLD}  --- MEDICION MTTA REAL (deteccion por sondeo) ---{C.RESET}")
+        print(f"  {C.CYAN}M.{C.RESET} Abrir detector SSH + mandar eventos syslog reales (~120s)")
         print(f"  {C.GRAY}RC.  Limpiar DB de pruebas (IP {RAMA_TEST_IP}){C.RESET}")
         print(f"  {C.GRAY}0.   Salir{C.RESET}")
         print(f"{C.BOLD}{'=' * 55}{C.RESET}")
@@ -771,6 +839,8 @@ def interactive_menu(stats):
             rama4_reincidencia(stats=stats)
         elif choice == "r5":
             rama5_password_spraying_workflow(stats=stats)
+        elif choice == "m":
+            mtta_real_test()
         elif choice == "rc":
             rama3_limpiar()
         elif choice == "0":

@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     severity VARCHAR(20),
     raw JSONB,
     status VARCHAR(30) DEFAULT 'new',
-    acknowledged_at TIMESTAMPTZ,
+    acknowledged_at TIMESTAMPTZ,  -- Reservada para futuro módulo de gestión de casos (ver §7.4)
     acknowledged_by TEXT,
     country_code VARCHAR(5),
     event_occurred_at TIMESTAMPTZ
@@ -56,8 +56,9 @@ CREATE INDEX IF NOT EXISTS idx_playbook_runs_executed_at ON playbook_runs(execut
 
 -- Vista para cálculo de MTTR (Mean Time To Respond)
 CREATE OR REPLACE VIEW mttr_stats AS
-SELECT 
+SELECT
     AVG(EXTRACT(EPOCH FROM (p.executed_at - a.ts))) AS avg_mttr_seconds,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(EPOCH FROM (p.executed_at - a.ts))) AS median_mttr_seconds,
     COUNT(*) AS total_responses
 FROM alerts a
 JOIN playbook_runs p ON p.alert_id = a.id;
@@ -79,7 +80,7 @@ FROM alerts;
 
 -- Vista para alertas por severidad
 CREATE OR REPLACE VIEW alerts_by_severity AS
-SELECT 
+SELECT
     DATE(ts) AS alert_date,
     severity,
     COUNT(*) AS count
@@ -144,7 +145,7 @@ WHERE a.rule_id NOT IN ('test_fix', 'test_playbook', 'test_mejorado', 'test_tele
 
 -- Vista para top IPs sospechosas
 CREATE OR REPLACE VIEW top_suspicious_ips AS
-SELECT 
+SELECT
     src_ip,
     COUNT(*) AS alert_count
 FROM alerts
