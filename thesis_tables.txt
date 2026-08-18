@@ -1,0 +1,113 @@
+=== TABLA 0 ===
+Trabajo / Solución | SIEM Open Source | Automatización SOAR | Entorno Académico | Docker / Reproducibilidad
+Manzoor et al. (2024)
+Pereira (2023)
+Islam, Babar & Nepal (2019)
+Kovacevic (2023)
+Este trabajo
+=== TABLA 1 ===
+Tipo | Variable | Indicador | Instrumento de Medición
+Independiente | Orquestación automática con n8n | Presencia/ausencia de workflow activo | Activación del workflow en n8n
+Dependiente | MTTA | Segundos desde evento hasta reconocimiento | Vista SQL mtta_stats en PostgreSQL
+Dependiente | MTTR | Segundos desde alerta hasta respuesta | Vista SQL mttr_stats en PostgreSQL
+Dependiente | Tasa de automatización | % alertas con playbook ejecutado | Vista SQL automation_rate
+Control | Tipo de reglas de detección | SSH brute-force y FIM | Scripts Python configurados
+Control | Volumen de eventos | Número de alertas generadas | attack_simulator.py
+=== TABLA 2 ===
+# | Fase | Duración | Entregable | Criterio de Validación
+1 | Diseño de arquitectura | 2 h | Diagrama lógico de componentes | Revisión por director de tesis
+2 | Ingesta y normalización | 3 h | Logs indexados en Elasticsearch | Consulta API REST devuelve eventos con src_ip
+3 | Reglas de detección | 3 h | Scripts Python SSH y FIM | Payload recibido en webhook de n8n
+4 | Orquestación con n8n | 3 h | Workflow exportado en JSON | Registro en playbook_runs confirmado
+5 | Visualización Grafana | 2 h | Dashboard con 7 paneles | Métricas visibles en tiempo real
+6 | Dashboard Streamlit | 2 h | Panel Panel de Operaciones de Seguridad operativo | KPIs actualizados cada 30 s
+7 | Métricas y validación | 2 h | Tabla MTTR manual vs. automático | H1 y H2 confirmadas cuantitativamente
+8 | Documentación | 2 h | README + guía didáctica | Despliegue desde cero en < 15 min
+=== TABLA 3 ===
+Componente | Puerto | Función | Justificación de selección
+syslog-ng | UDP 514 | Punto de entrada para logs | Soporte nativo RFC 3164/5424, alta compatibilidad
+Logstash | UDP 5140 | Parseo, normalización y enriquecimiento | Filtros Grok maduros, integración nativa con ES
+Elasticsearch | TCP 9200 | Indexación y búsqueda en tiempo real | API REST, agregaciones complejas en ms
+PostgreSQL | TCP 5432 | Almacenamiento estructurado y métricas | SQL estándar, soporte JSONB, integración Grafana
+Detector Python (SSH) | — | Detección SSH brute-force periódica | Flexibilidad total en lógica de detección
+Script FIM (Python) | — | Monitoreo de integridad de archivos | Liviano, sin dependencias externas
+n8n | TCP 5678 | Orquestación SOAR-lite | Interfaz visual, extensible, código abierto
+Grafana | TCP 3000 | Dashboards operativos del SOC | Integración nativa con PostgreSQL
+Kibana | TCP 5601 | Exploración ad-hoc de logs | Herramienta de facto para índices ELK
+Blocker API | TCP 8765 | Bloqueo de firewall real (opcional) | Invocable desde n8n con una llamada HTTP
+=== TABLA 4 ===
+Objetivo Específico | Estado | Evidencia de Validación
+Recolección centralizada de logs (syslog-ng + Logstash) | Implementado | Logs indexados en Elasticsearch con parseo exitoso de src_ip y username
+Almacenamiento dual Elasticsearch + PostgreSQL | Implementado | Consultas SQL y API REST funcionando correctamente
+Detección SSH brute-force | Implementado | Umbral de 5 intentos / 2 min activa webhook correctamente
+Monitoreo FIM (Python) | Implementado | Alertas nivel 5/7/8 por crear/modificar/eliminar archivos
+Orquestación n8n con PostgreSQL y Telegram | Implementado | 160/162 alertas con registro en playbook_runs
+Dashboards Grafana (7 paneles) | Implementado | Métricas en tiempo real validadas visualmente
+Métricas MTTA y MTTR comparativas | Implementado | MTTR ~1 s vs. línea base bibliográfica >10 min (Tabla 6.1)
+=== TABLA 5 ===
+Funcionalidad Adicional | Estado | Evidencia de Validación
+Risk Score con enriquecimiento AbuseIPDB | Implementado | Score 0-100 calculado combinando reputación externa, alertas acumuladas y reputación interna de 7 días; visible en las notificaciones de Telegram
+Detección de Password Spraying | Implementado | Incidente especial creado al detectar 5+ IPs distintas atacando el mismo usuario en una ventana de 5 minutos
+Gestión de incidentes con detección de reincidencia | Implementado | IP con incidente abierto genera alerta de reincidencia sin duplicar el incidente (tabla incidents, estado open/closed)
+Bloqueo automático de IP (Blocker API) | Implementado | IP bloqueada por 24 hs vía netsh/iptables reales; estado de enforcement registrado en ip_blacklist
+Registro y auditoría de alertas fallidas (failed_alerts) | Implementado | 2 de 162 alertas identificadas y auditadas con causa raíz real (indisponibilidad momentánea de la Blocker API); tabla failed_alerts registra nodo y mensaje de error reales, no genéricos
+Medición real de MTTA por sondeo periódico | Implementado | ≈61,5 s (n=5) medido mediante inyección de eventos syslog reales y detección efectiva por el detector SSH cada 120 s; vista SQL mtta_stats
+Reporte diario automático por Telegram (workflow SIEM – Reporte Diario) | Implementado | Resumen de alertas, distribución por severidad, top IPs, MTTR, MTTA, tasa de automatización e incidentes abiertos enviado diariamente vía Schedule Trigger en n8n
+Manejo centralizado de errores (workflow SIEM – Error Handler) | Implementado | Captura errores de ejecución de cualquier workflow de n8n, notifica por Telegram y registra el error en PostgreSQL con nodo y mensaje reales
+=== TABLA 6 ===
+Métrica | Línea base bibliográfica
+del proceso manual ⁽¹⁾ | Sistema Automatizado
+(medición empírica)
+MTTA (detección) | ~300 s (estimación bibliográfica) | ~61,5 s (n=5, sondeo real)
+MTTR (respuesta) | > 600 s (estimación bibliográfica) | ~1 s (n8n)
+Trazabilidad | Ninguna (proceso informal) | 100 % (playbook_runs)
+Tasa de automatización | 0 % (100 % manual) | 98,77 %
+Costo de infraestructura | N/A | USD ~0 (open source + Docker)
+Tiempo de despliegue | N/A | 5–15 min (primera vez)
+=== TABLA 7 ===
+Módulo | Título | Duración | Entregable | Criterio de Validación
+1 | Fundamentos y arquitectura | 12 h | Diagrama lógico; docker-compose.yml inicial | Aprobación del director de tesis
+2 | Ingesta y normalización | 20 h | Logs indexados en Elasticsearch | Consulta API REST devuelve src_ip y username
+3 | Reglas de detección | 18 h | Scripts ssh_bruteforce_detector.py, fim_monitor.py y fim_to_n8n.py | Payload JSON recibido en webhook de n8n
+4 | Orquestación con n8n | 22 h | Workflow SIEM – Alerta Entrante exportado en JSON | Registro confirmado en playbook_runs
+5 | Visualización Grafana | 12 h | Dashboard con 7 paneles exportado en JSON | Métricas MTTA y MTTR visibles en tiempo real
+6 | Dashboard Streamlit | 16 h | app.py (dashboard Streamlit) funcional | KPIs actualizados cada 30 s; mapa visible
+7 | Métricas y validación | 16 h | Tabla 6.1 con métricas medidas | MTTR automático < 30 s; automatización > 90 %
+8 | Documentación | 40 h | README + guía didáctica completos | Despliegue desde cero en < 15 min
+=== TABLA 8 ===
+Indicador | Descripción | Fórmula | Fuente | Umbral referencia
+MTTA | Tiempo medio hasta reconocimiento | ES + n8n | < 120 s (equivalente a un ciclo de sondeo)
+MTTR | Tiempo medio hasta respuesta | PostgreSQL (mttr_stats) | < 30 s (automatizado)
+Tasa de automatización | % alertas con playbook ejecutado | (playbooks / alertas) × 100 | PostgreSQL (automation_rate) | > 90 %
+Cobertura de fuentes | % hosts enviando logs | (hosts_activos / total) × 100 | syslog-ng | > 80 %
+Falsos positivos | Alertas sin evidencia real | Marcado manual en n8n | n8n + PostgreSQL | < 10 %
+Alertas por severidad | Distribución de criticidad | COUNT(*) GROUP BY severity | PostgreSQL | Referencia contextual
+IPs sospechosas | Top IPs con mayor actividad | COUNT(*) GROUP BY src_ip | PostgreSQL (top_suspicious_ips) | Top 10 monitoreadas
+Incidentes abiertos | Incidentes sin resolución | COUNT(*) WHERE status='open' | PostgreSQL (incidents) | 0 en estado ideal
+Alertas fallidas | Errores de procesamiento | COUNT(*) WHERE resolved=false | PostgreSQL (failed_alerts) | < 5 % del total
+=== TABLA 9 ===
+Nodo | Grupo | Función
+Webhook | Entrada | Recibe la alerta vía HTTP POST en /webhook/alert/siem
+Enriquecer Datos | Entrada | Clasifica el tipo de incidente y asigna prioridad (P1/P2/P3)
+Filtrar por Severidad | Entrada | Switch de 3 salidas: CRITICAL/HIGH continúan, LOW se registra y termina
+Registrar Playbook Low | Entrada | INSERT en playbook_runs para alertas LOW (outcome logged_low)
+Verificar Incidente Activo / ¿Incidente ya existe? | Reincidencia | Consulta si la IP ya tiene un incidente abierto
+Alerta Reincidencia | Reincidencia | Notifica por Telegram sin duplicar el incidente
+Insertar Alerta | Persistencia | INSERT en la tabla alerts, captura el ID generado
+Enviar Mensaje | Notificación General | Notifica la alerta CRITICAL/HIGH por Telegram inmediatamente tras registrar el playbook
+Email Alerta | Notificación General | Notifica la misma alerta CRITICAL/HIGH por email
+Contar IPs únicas / ¿Es Password Spraying? | Password Spraying | Cuenta IPs distintas contra el mismo usuario en 5 min; umbral ≥5
+Verificar Incidente Spraying Activo / ¿Ya existe incidente spraying? | Password Spraying | Consulta si ya existe un incidente de spraying abierto para el mismo usuario en los últimos 10 minutos, evitando duplicarlo
+Crear Incidente Spraying / Alerta Spraying | Password Spraying | Crea incidente especial y notifica por Telegram
+Consultar AbuseIPDB | Risk Score | Consulta reputación de IP y país de origen en AbuseIPDB
+Guardar País | Risk Score | Persiste el país de origen para el mapa geográfico del dashboard
+Contar Alertas / Reputación Interna | Risk Score | Cuenta alertas acumuladas y reputación interna de 7 días
+Calcular Risk Score | Risk Score | Combina los tres factores en un score de 0 a 100
+Detectar Ataque | Decisión | Evalúa si el Risk Score alcanza el umbral crítico (≥70)
+Verificar Incidente Abierto / ¿Crear nuevo incidente? | Decisión | Consulta si ya existe un incidente abierto para la misma IP y regla en los últimos 10 minutos, evitando duplicarlo antes de crear uno nuevo
+Crear Incidente | Respuesta crítica | INSERT en la tabla incidents
+Bloquear IP | Respuesta crítica | INSERT en ip_blacklist (intención de bloqueo)
+Enforce Block | Respuesta crítica | POST a la Blocker API (http://host.docker.internal:8765/block) para aplicar la regla de firewall real
+Actualizar Enforcement | Respuesta crítica | UPDATE en ip_blacklist con el resultado real del bloqueo (enforced, enforcement_message)
+Notificar Bloqueo / Mensaje especial / Email de Incidente | Respuesta crítica | Notifica el incidente y el bloqueo por Telegram y email
+Registrar Playbook / Registrar Playbook1 / Registrar Playbook2 | Auditoría | INSERT en playbook_runs con el outcome correspondiente (success, incident_created, blocked, etc.)
