@@ -88,10 +88,8 @@ services:
       - DB_POSTGRESDB_DATABASE=siem
       - DB_POSTGRESDB_USER=siem
       - DB_POSTGRESDB_PASSWORD=siem123
-      # Credenciales de laboratorio para autenticación básica en n8n
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=admin
-      - N8N_BASIC_AUTH_PASSWORD=admin123  # CREDENCIAL DE LABORATORIO
+      # N8N_BASIC_AUTH_* deprecado en esta version de n8n (gestion de usuarios nativa
+      # con cuenta de owner, ver Anexo E paso 6 y seccion 7.2.7 de la tesis)
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
