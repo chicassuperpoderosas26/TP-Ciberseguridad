@@ -2,7 +2,9 @@
 -- SIEM Database Schema
 -- ============================================
 
--- Tabla de eventos crudos (auditoría completa)
+-- Tabla de eventos crudos (auditoría completa). Reservada para ingesta directa de
+-- eventos; no poblada en la implementación actual, en la que Logstash escribe
+-- únicamente a Elasticsearch (ver §5.2 de la tesis).
 CREATE TABLE IF NOT EXISTS events_raw (
     id SERIAL PRIMARY KEY,
     ts TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -87,6 +89,17 @@ SELECT
 FROM alerts
 GROUP BY DATE(ts), severity
 ORDER BY alert_date DESC, severity;
+
+-- Vista para distribucion de alertas por regla de deteccion (cobertura del catalogo)
+CREATE OR REPLACE VIEW alerts_by_rule AS
+SELECT
+    rule_id,
+    COUNT(*) AS alert_count,
+    MIN(ts) AS primera_vez,
+    MAX(ts) AS ultima_vez
+FROM alerts
+GROUP BY rule_id
+ORDER BY alert_count DESC;
 
 -- Vista para tasa de automatización (cobertura + éxito separados)
 CREATE OR REPLACE VIEW automation_rate AS
