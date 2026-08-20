@@ -86,6 +86,12 @@ Ninguna de las siguientes figuraba en el dictamen anterior. Las tres surgen de l
 
 **Q-03 (cerrado en esta entrega) — Tabla D.1 sin fila propia para la nueva métrica de H4.** Al sustituir el indicador de H4 (N-06) se creó la vista de respaldo pero no se registró como fila en el Anexo D, rompiendo el patrón por el cual cada métrica de H4 tiene su indicador formal documentado. Resuelto agregando la fila correspondiente en su posición temática (junto a tasa de automatización).
 
+**Q-04 (cerrado en esta entrega) — Anexo B no reflejaba la vista `alerts_by_rule` creada para N-06.** Verificación dirigida, motivada por una pregunta directa sobre sincronización de anexos: la vista se había creado en la base de datos real y en `sql/01-init.sql`, pero nunca se propagó a la reproducción del esquema SQL en el Anexo B. Resuelto insertando el bloque completo de la vista en su posición exacta (entre `alerts_by_severity` y `automation_rate`), verificado con diff línea por línea contra el archivo real: coincidencia exacta.
+
+**Q-05 (cerrado en esta entrega) — Anexo F desactualizado respecto de `docker-compose.yml`.** El mismo chequeo dirigido encontró que el Anexo F no contenía los tres comentarios `# CREDENCIAL DE LABORATORIO` (en las contraseñas de PostgreSQL, del dashboard y de Grafana) ni el bloque de comentario sobre la deprecación de `N8N_BASIC_AUTH_*`, todos presentes en el archivo real. Resuelto sincronizando el Anexo F línea por línea; verificado con diff exacto contra `docker-compose.yml`.
+
+Los Anexos C (Logstash), G (syslog-ng), H (nodos del workflow n8n, cotejado nodo por nodo contra el JSON real: 34 nodos reales, los 34 representados en la tabla agrupada) y J (datasources y consultas SQL de Grafana, cotejados contra los archivos y el JSON real de los dashboards) se verificaron sin discrepancias.
+
 No se identificaron observaciones de severidad Alta o Media-Alta pendientes de cierre al momento de esta entrega.
 
 ---
@@ -103,7 +109,7 @@ No se identificaron observaciones de severidad Alta o Media-Alta pendientes de c
 | 7. Conclusiones | 8,0 | 8,5 | 8,5 | 9,0 | **9,5** | §7.2.2 deja de replicar la atribución de latencia sin respaldo del §6.3. |
 | Consideraciones Éticas | — | — | — | 7,5 | **9,5** | La política ya no prohíbe lo que el sistema hace: describe los controles reales que lo hacen aceptable, verificados en vivo (24,00 h exactas de expiración). |
 | 9. Referencias | 7,5 | 8,5 | 8,5 | 9,0 | **10,0** | Correspondencia biunívoca cita↔referencia alcanzada sin excepciones conocidas. |
-| 10. Anexos | 7,5 | 7,5 | 8,5 | 8,5 | **9,5** | Fuente del MTTA en Tabla D.1 corregida; versión de n8n del Anexo F coherente con el resto del documento; fila nueva de indicador agregada (Q-03). |
+| 10. Anexos | 7,5 | 7,5 | 8,5 | 8,5 | **9,5** | Fuente del MTTA en Tabla D.1 corregida; versión de n8n del Anexo F coherente con el resto del documento; fila nueva de indicador agregada (Q-03); Anexo B sincronizado con la vista `alerts_by_rule` y Anexo F con los comentarios de credenciales y deprecación de n8n presentes en los archivos reales (Q-04, Q-05), verificados los siete anexos técnicos con diff línea por línea contra sus fuentes. |
 | Escritura científica | 8,0 | 7,5 | 8,0 | 8,0 | **9,5** | Índices con tabulación profesional y paginación verificada en vivo. Densidad de redacción remedida y mejorada sustancialmente en las tres métricas (31,3 vs. 45,5 palabras/oración; 26,3 % vs. 45,0 % sobre 40 palabras; 7,6 % vs. 20,8 % sobre 60). |
 
 *(La fila de Consideraciones Éticas se excluye del promedio de trayectoria para mantener comparabilidad con los dictámenes previos, igual que en la cuarta instancia.)*
