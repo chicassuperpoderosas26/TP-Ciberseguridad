@@ -12,6 +12,7 @@ services:
       POSTGRES_USER: siem
       POSTGRES_PASSWORD: siem123  # CREDENCIAL DE LABORATORIO
       POSTGRES_DB: siem
+      TZ: America/Argentina/Buenos_Aires
     ports:
       - "5432:5432"
     volumes:
@@ -88,8 +89,8 @@ services:
       - DB_POSTGRESDB_DATABASE=siem
       - DB_POSTGRESDB_USER=siem
       - DB_POSTGRESDB_PASSWORD=siem123
-      # N8N_BASIC_AUTH_* deprecado en esta version de n8n (gestion de usuarios nativa
-      # con cuenta de owner, ver Anexo E paso 6 y seccion 7.2.7 de la tesis)
+      - GENERIC_TIMEZONE=America/Argentina/Buenos_Aires
+      - TZ=America/Argentina/Buenos_Aires
     volumes:
       - n8n_data:/home/node/.n8n
     networks:
@@ -109,6 +110,9 @@ services:
       - DB_NAME=siem
       - DB_USER=siem
       - DB_PASSWORD=siem123  # CREDENCIAL DE LABORATORIO
+      - TZ=America/Argentina/Buenos_Aires
+    volumes:
+      - ./dashboard/app.py:/app/app.py
     networks:
       - siem-net
     depends_on:

@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS alerts (
     status VARCHAR(30) DEFAULT 'new',
     acknowledged_at TIMESTAMPTZ,  -- Reservada para futuro módulo de gestión de casos (ver §7.4)
     acknowledged_by TEXT,
-    country_code VARCHAR(5),
+    country_code VARCHAR(100),
     event_occurred_at TIMESTAMPTZ
 );
 
